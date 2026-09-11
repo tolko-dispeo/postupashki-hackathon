@@ -9,6 +9,7 @@ __pycache__/
 *.sqlite
 *.sqlite3
 .ipynb_checkpoints/
+*.egg-info/
 
 data/raw/*
 !data/raw/README.md
