@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from postupashki_mvp.database import Base
-from postupashki_mvp.models import Event, Lead, Order, Payment, Placement
+from postupashki_mvp.models import Campaign, Event, Lead, Order, Payment, Placement
 from postupashki_mvp.services.analytics import (
     load_campaign_metrics,
     load_funnel_metrics,
@@ -21,24 +21,41 @@ def test_funnel_deduplicates_visitors_and_uses_global_last_touch() -> None:
     with Session(test_engine) as session:
         session.add_all(
             [
+                Campaign(
+                    campaign_id="campaign_a",
+                    campaign_name="Same display name",
+                    is_synthetic=True,
+                ),
+                Campaign(
+                    campaign_id="campaign_b",
+                    campaign_name="Same display name",
+                    is_synthetic=True,
+                ),
+            ]
+        )
+        session.flush()
+
+        session.add_all(
+            [
                 Placement(
                     placement_id="placement_a",
+                    campaign_id="campaign_a",
                     channel_name="Channel A",
-                    campaign_name="Campaign A",
                     landing_url="https://example.com/a",
                     cost=Decimal(1000),
                     is_synthetic=True,
                 ),
                 Placement(
                     placement_id="placement_b",
+                    campaign_id="campaign_b",
                     channel_name="Channel B",
-                    campaign_name="Campaign B",
                     landing_url="https://example.com/b",
                     cost=Decimal(1000),
                     is_synthetic=True,
                 ),
             ]
         )
+        session.flush()
 
         session.add_all(
             [
@@ -110,9 +127,9 @@ def test_funnel_deduplicates_visitors_and_uses_global_last_touch() -> None:
         session.commit()
 
     all_campaigns = load_funnel_metrics(db_engine=test_engine)
-    campaign_a = load_funnel_metrics("Campaign A", test_engine)
-    campaign_b = load_funnel_metrics("Campaign B", test_engine)
-    campaign_metrics = load_campaign_metrics(test_engine).set_index("campaign_name")
+    campaign_a = load_funnel_metrics("campaign_a", test_engine)
+    campaign_b = load_funnel_metrics("campaign_b", test_engine)
+    campaign_metrics = load_campaign_metrics(test_engine).set_index("campaign_id")
 
     assert all_campaigns["clicks"] == 3
     assert all_campaigns["click_users"] == 2
@@ -129,11 +146,13 @@ def test_funnel_deduplicates_visitors_and_uses_global_last_touch() -> None:
     assert campaign_b["leads"] == 1
     assert campaign_b["payments"] == 1
 
-    assert campaign_metrics.loc["Campaign A", "click_users"] == 2
-    assert campaign_metrics.loc["Campaign A", "leads"] == 0
-    assert campaign_metrics.loc["Campaign A", "attributed_revenue"] == 0
+    assert campaign_metrics.loc["campaign_a", "campaign_name"] == "Same display name"
+    assert campaign_metrics.loc["campaign_a", "click_users"] == 2
+    assert campaign_metrics.loc["campaign_a", "leads"] == 0
+    assert campaign_metrics.loc["campaign_a", "attributed_revenue"] == 0
 
-    assert campaign_metrics.loc["Campaign B", "click_users"] == 1
-    assert campaign_metrics.loc["Campaign B", "leads"] == 1
-    assert campaign_metrics.loc["Campaign B", "payments"] == 1
-    assert campaign_metrics.loc["Campaign B", "attributed_revenue"] == 8950
+    assert campaign_metrics.loc["campaign_b", "campaign_name"] == "Same display name"
+    assert campaign_metrics.loc["campaign_b", "click_users"] == 1
+    assert campaign_metrics.loc["campaign_b", "leads"] == 1
+    assert campaign_metrics.loc["campaign_b", "payments"] == 1
+    assert campaign_metrics.loc["campaign_b", "attributed_revenue"] == 8950

@@ -37,15 +37,11 @@ def add_derived_metrics(metrics: pd.DataFrame) -> pd.DataFrame:
         axis=1,
     )
     metrics["click_to_lead_pct"] = metrics.apply(
-        lambda row: row["leads"] / row["click_users"] * 100
-        if row["click_users"] > 0
-        else None,
+        lambda row: row["leads"] / row["click_users"] * 100 if row["click_users"] > 0 else None,
         axis=1,
     )
     metrics["lead_to_payment_pct"] = metrics.apply(
-        lambda row: row["payments"] / row["leads"] * 100
-        if row["leads"] > 0
-        else None,
+        lambda row: row["payments"] / row["leads"] * 100 if row["leads"] > 0 else None,
         axis=1,
     )
     metrics["cac"] = metrics.apply(
@@ -87,27 +83,36 @@ campaign_data[numeric_columns] = campaign_data[numeric_columns].fillna(0)
 data = add_derived_metrics(data)
 campaign_data = add_derived_metrics(campaign_data)
 
-campaign_names = sorted(data["campaign_name"].dropna().unique().tolist())
+campaign_options = (
+    campaign_data[["campaign_id", "campaign_name"]]
+    .sort_values(["campaign_name", "campaign_id"])
+    .to_dict("records")
+)
+campaign_labels = {
+    row["campaign_id"]: f"{row['campaign_name']} · {row['campaign_id']}" for row in campaign_options
+}
 
 st.sidebar.header("Фильтры")
 selected_campaign = st.sidebar.selectbox(
     "Рекламная кампания",
-    [ALL_CAMPAIGNS, *campaign_names],
+    [None, *campaign_labels],
+    format_func=lambda campaign_id: (
+        ALL_CAMPAIGNS if campaign_id is None else campaign_labels[campaign_id]
+    ),
 )
-
-campaign_filter = None if selected_campaign == ALL_CAMPAIGNS else selected_campaign
 
 selected_data = (
-    data
-    if campaign_filter is None
-    else data[data["campaign_name"] == campaign_filter].copy()
+    data if selected_campaign is None else data[data["campaign_id"] == selected_campaign].copy()
 )
 
-funnel_metrics = load_funnel_metrics(campaign_filter)
+funnel_metrics = load_funnel_metrics(selected_campaign)
+selected_campaign_label = (
+    ALL_CAMPAIGNS if selected_campaign is None else campaign_labels[selected_campaign]
+)
 
 st.caption(
     "Атрибуция: last-touch · Окно: 30 дней · "
-    f"Данные: {data_kind_label(selected_data)} · Срез: {selected_campaign}"
+    f"Данные: {data_kind_label(selected_data)} · Срез: {selected_campaign_label}"
 )
 
 total_cost = float(selected_data["cost"].sum())
@@ -116,13 +121,11 @@ total_revenue = float(selected_data["attributed_revenue"].sum())
 total_romi = None
 if total_cost > 0:
     total_romi = (
-        (Decimal(str(total_revenue)) - Decimal(str(total_cost)))
-        / Decimal(str(total_cost))
-        * 100
+        (Decimal(str(total_revenue)) - Decimal(str(total_cost))) / Decimal(str(total_cost)) * 100
     )
 
 first_row = st.columns(5)
-first_row[0].metric("Кампании", selected_data["campaign_name"].nunique())
+first_row[0].metric("Кампании", selected_data["campaign_id"].nunique())
 first_row[1].metric("Размещения", len(selected_data))
 first_row[2].metric("Рекламные клики", funnel_metrics["clicks"])
 first_row[3].metric("Лиды", funnel_metrics["leads"])
@@ -136,7 +139,7 @@ second_row[2].metric(
     f"{total_romi:.2f}%" if total_romi is not None else "—",
 )
 
-st.subheader(f"Воронка: {selected_campaign}")
+st.subheader(f"Воронка: {selected_campaign_label}")
 
 funnel = pd.DataFrame(
     {
@@ -175,6 +178,10 @@ campaign_ranking = campaign_data.sort_values(
     ["romi_pct", "attributed_revenue"],
     ascending=[False, False],
 ).reset_index(drop=True)
+campaign_ranking["campaign_label"] = campaign_ranking.apply(
+    lambda row: f"{row['campaign_name']} · {row['campaign_id']}",
+    axis=1,
+)
 
 comparison_left, comparison_right = st.columns(2)
 
@@ -182,13 +189,13 @@ money_figure = go.Figure(
     data=[
         go.Bar(
             name="Выручка",
-            x=campaign_ranking["campaign_name"],
+            x=campaign_ranking["campaign_label"],
             y=campaign_ranking["attributed_revenue"],
             hovertemplate="%{x}<br>Выручка: %{y:,.0f} ₽<extra></extra>",
         ),
         go.Bar(
             name="Расходы",
-            x=campaign_ranking["campaign_name"],
+            x=campaign_ranking["campaign_label"],
             y=campaign_ranking["cost"],
             hovertemplate="%{x}<br>Расходы: %{y:,.0f} ₽<extra></extra>",
         ),
@@ -202,14 +209,11 @@ money_figure.update_layout(
 )
 comparison_left.plotly_chart(money_figure, use_container_width=True)
 
-romi_colors = [
-    "#2E8B57" if value >= 0 else "#C44E52"
-    for value in campaign_ranking["romi_pct"]
-]
+romi_colors = ["#2E8B57" if value >= 0 else "#C44E52" for value in campaign_ranking["romi_pct"]]
 
 romi_figure = go.Figure(
     go.Bar(
-        x=campaign_ranking["campaign_name"],
+        x=campaign_ranking["campaign_label"],
         y=campaign_ranking["romi_pct"],
         marker_color=romi_colors,
         text=campaign_ranking["romi_pct"].round(1),
@@ -227,6 +231,7 @@ comparison_right.plotly_chart(romi_figure, use_container_width=True)
 campaign_table = campaign_ranking[
     [
         "campaign_name",
+        "campaign_id",
         "placements",
         "click_users",
         "leads",
@@ -243,6 +248,7 @@ campaign_table = campaign_ranking[
 campaign_table = campaign_table.rename(
     columns={
         "campaign_name": "Кампания",
+        "campaign_id": "Campaign ID",
         "placements": "Размещения",
         "click_users": "Кликнувшие",
         "leads": "Лиды",
@@ -272,6 +278,7 @@ st.subheader("Эффективность размещений")
 table = selected_data[
     [
         "placement_id",
+        "campaign_id",
         "channel_name",
         "campaign_name",
         "target_product",
@@ -291,6 +298,7 @@ table = selected_data[
 table = table.rename(
     columns={
         "placement_id": "Placement ID",
+        "campaign_id": "Campaign ID",
         "channel_name": "Канал",
         "campaign_name": "Кампания",
         "target_product": "Продукт",
@@ -312,8 +320,6 @@ table["Лид → оплата, %"] = table["Лид → оплата, %"].round(
 table["ROMI, %"] = table["ROMI, %"].round(1)
 table["Выручка"] = table["Выручка"].apply(format_money)
 table["Расходы"] = table["Расходы"].apply(format_money)
-table["CAC"] = table["CAC"].apply(
-    lambda value: format_money(value) if pd.notna(value) else "—"
-)
+table["CAC"] = table["CAC"].apply(lambda value: format_money(value) if pd.notna(value) else "—")
 
 st.dataframe(table, hide_index=True, use_container_width=True)

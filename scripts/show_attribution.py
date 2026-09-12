@@ -4,7 +4,6 @@ from sqlalchemy import text
 
 from postupashki_mvp.database import engine
 
-
 LAST_TOUCH_QUERY = text(
     """
     WITH candidate_touches AS (
@@ -16,7 +15,8 @@ LAST_TOUCH_QUERY = text(
             events.occurred_at AS touch_time,
             placements.placement_id,
             placements.channel_name,
-            placements.campaign_name,
+            campaigns.campaign_id,
+            campaigns.campaign_name,
             placements.cost,
             ROW_NUMBER() OVER (
                 PARTITION BY payments.payment_id
@@ -31,6 +31,8 @@ LAST_TOUCH_QUERY = text(
             ON events.visitor_id = leads.visitor_id
         JOIN placements
             ON placements.placement_id = events.placement_id
+        JOIN campaigns
+            ON campaigns.campaign_id = placements.campaign_id
         WHERE payments.status = 'succeeded'
           AND events.event_name = 'ad_click'
           AND events.occurred_at <= leads.created_at
@@ -47,6 +49,7 @@ LAST_TOUCH_QUERY = text(
     SELECT
         placement_id,
         channel_name,
+        campaign_id,
         campaign_name,
         cost,
         COUNT(DISTINCT payment_id) AS paid_orders,
@@ -55,6 +58,7 @@ LAST_TOUCH_QUERY = text(
     GROUP BY
         placement_id,
         channel_name,
+        campaign_id,
         campaign_name,
         cost
     ORDER BY attributed_revenue DESC
@@ -64,9 +68,7 @@ LAST_TOUCH_QUERY = text(
 
 def main() -> None:
     with engine.connect() as connection:
-        rows = connection.execute(
-            LAST_TOUCH_QUERY
-        ).mappings().all()
+        rows = connection.execute(LAST_TOUCH_QUERY).mappings().all()
 
     if not rows:
         print("Атрибутированных оплат пока нет")
@@ -86,6 +88,7 @@ def main() -> None:
 
         print(f"Размещение: {row['placement_id']}")
         print(f"Канал: {row['channel_name']}")
+        print(f"Campaign ID: {row['campaign_id']}")
         print(f"Кампания: {row['campaign_name']}")
         print(f"Оплаченных заказов: {row['paid_orders']}")
         print(f"Атрибутированная выручка: {revenue:.2f} ₽")

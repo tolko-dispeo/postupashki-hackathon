@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from postupashki_mvp.database import SessionLocal
 from postupashki_mvp.models import (
+    Campaign,
     Event,
     Lead,
     Order,
@@ -10,11 +11,26 @@ from postupashki_mvp.models import (
     Placement,
 )
 
+DEMO_CAMPAIGNS = [
+    {
+        "campaign_id": "cmp_autumn_ml",
+        "campaign_name": "Осенний запуск ML",
+    },
+    {
+        "campaign_id": "cmp_career_intensive",
+        "campaign_name": "Карьерный интенсив",
+    },
+    {
+        "campaign_id": "cmp_exam_prep",
+        "campaign_name": "Подготовка к поступлению",
+    },
+]
+
 DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_001",
         "channel_name": "Data Science Jobs",
-        "campaign_name": "Осенний запуск ML",
+        "campaign_id": "cmp_autumn_ml",
         "campaign_slug": "autumn_ml",
         "target_product": "ML Start",
         "cost": Decimal("25000.00"),
@@ -29,7 +45,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_002",
         "channel_name": "Python для всех",
-        "campaign_name": "Осенний запуск ML",
+        "campaign_id": "cmp_autumn_ml",
         "campaign_slug": "autumn_ml",
         "target_product": "ML Start",
         "cost": Decimal("18000.00"),
@@ -44,7 +60,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_003",
         "channel_name": "Карьера BigTech",
-        "campaign_name": "Карьерный интенсив",
+        "campaign_id": "cmp_career_intensive",
         "campaign_slug": "career_intensive",
         "target_product": "Career Pro",
         "cost": Decimal("30000.00"),
@@ -59,7 +75,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_004",
         "channel_name": "Стажировки IT",
-        "campaign_name": "Карьерный интенсив",
+        "campaign_id": "cmp_career_intensive",
         "campaign_slug": "career_intensive",
         "target_product": "Career Pro",
         "cost": Decimal("22000.00"),
@@ -74,7 +90,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_005",
         "channel_name": "Студенты IT",
-        "campaign_name": "Подготовка к поступлению",
+        "campaign_id": "cmp_exam_prep",
         "campaign_slug": "exam_prep",
         "target_product": "Exam Start",
         "cost": Decimal("15000.00"),
@@ -89,7 +105,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_006",
         "channel_name": "Абитуриенты 2027",
-        "campaign_name": "Подготовка к поступлению",
+        "campaign_id": "cmp_exam_prep",
         "campaign_slug": "exam_prep",
         "target_product": "Exam Start",
         "cost": Decimal("20000.00"),
@@ -107,25 +123,21 @@ DEMO_PLACEMENTS = [
 def clear_synthetic_data(session) -> None:
     # Удаляем только synthetic-данные.
     # Порядок важен: сначала дочерние сущности.
-    session.query(Payment).filter(
-        Payment.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Payment).filter(Payment.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Order).filter(
-        Order.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Order).filter(Order.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Lead).filter(
-        Lead.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Lead).filter(Lead.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Event).filter(
-        Event.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Event).filter(Event.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Placement).filter(
-        Placement.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Placement).filter(Placement.is_synthetic.is_(True)).delete(
+        synchronize_session=False
+    )
+
+    session.query(Campaign).filter(Campaign.is_synthetic.is_(True)).delete(
+        synchronize_session=False
+    )
 
     session.commit()
 
@@ -133,8 +145,8 @@ def clear_synthetic_data(session) -> None:
 def seed_placement(session, config: dict, placement_number: int) -> None:
     placement = Placement(
         placement_id=config["placement_id"],
+        campaign_id=config["campaign_id"],
         channel_name=config["channel_name"],
-        campaign_name=config["campaign_name"],
         target_product=config["target_product"],
         landing_url=(
             "https://postupashki.ru/"
@@ -150,11 +162,7 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
     session.add(placement)
     session.flush()
 
-    base_time = (
-        datetime.now(UTC)
-        - timedelta(days=7)
-        + timedelta(hours=placement_number * 4)
-    )
+    base_time = datetime.now(UTC) - timedelta(days=7) + timedelta(hours=placement_number * 4)
 
     for i in range(config["clicks"]):
         visitor_id = f"{config['placement_id']}_visitor_{i:03d}"
@@ -354,6 +362,18 @@ def seed_cross_campaign_journey(session) -> None:
 def main() -> None:
     with SessionLocal() as session:
         clear_synthetic_data(session)
+
+        session.add_all(
+            [
+                Campaign(
+                    campaign_id=config["campaign_id"],
+                    campaign_name=config["campaign_name"],
+                    is_synthetic=True,
+                )
+                for config in DEMO_CAMPAIGNS
+            ]
+        )
+        session.flush()
 
         for number, placement_config in enumerate(DEMO_PLACEMENTS):
             seed_placement(
