@@ -1,0 +1,6 @@
+placement_id,campaign_id,campaign_name,channel_id,channel_name,course_id,course_name,landing_url,published_at,cost,is_synthetic
+pl_001,cmp_autumn_26,Осенний набор 2026,ch_own_01,Поступашки — основной канал,course_ml_start,ML Start,https://postupashki.example/courses/ml-start?placement_id=pl_001,2026-08-25T10:00:00Z,0,true
+pl_002,cmp_autumn_26,Осенний набор 2026,ch_ext_01,Партнёрский канал A — synthetic,course_ml_start,ML Start,https://postupashki.example/courses/ml-start?placement_id=pl_002,2026-08-27T12:00:00Z,20000,true
+pl_003,cmp_career_26,Карьера в данных 2026,ch_own_02,Поступашки — карьера,course_data_analytics,Data Analytics,https://postupashki.example/courses/data-analytics?placement_id=pl_003,2026-09-01T09:00:00Z,0,true
+pl_004,cmp_autumn_26,Осенний набор 2026,ch_ext_02,Партнёрский канал B — synthetic,course_python_base,Python Base,https://postupashki.example/courses/python-base?placement_id=pl_004,2026-08-30T15:30:00Z,15000,true
+pl_005,cmp_career_26,Карьера в данных 2026,ch_ext_03,Партнёрский канал C — synthetic,course_data_analytics,Data Analytics,https://postupashki.example/courses/data-analytics?placement_id=pl_005,2026-09-05T11:00:00Z,18000,true

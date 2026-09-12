@@ -70,8 +70,9 @@ PLACEMENT_METRICS_QUERY = text(
     )
     SELECT
         placements.placement_id,
+        placements.campaign_id,
         placements.channel_name,
-        placements.campaign_name,
+        campaigns.campaign_name,
         placements.target_product,
         CAST(placements.cost AS REAL) AS cost,
         placements.is_synthetic,
@@ -84,6 +85,8 @@ PLACEMENT_METRICS_QUERY = text(
         COALESCE(sales_metrics.payments, 0) AS payments,
         COALESCE(sales_metrics.attributed_revenue, 0) AS attributed_revenue
     FROM placements
+    JOIN campaigns
+        ON campaigns.campaign_id = placements.campaign_id
     LEFT JOIN event_metrics
         ON event_metrics.placement_id = placements.placement_id
     LEFT JOIN sales_metrics
@@ -97,15 +100,18 @@ CAMPAIGN_METRICS_QUERY = text(
     """
     WITH placement_metrics AS (
         SELECT
-            campaign_name,
-            COUNT(*) AS placements,
-            SUM(CAST(cost AS REAL)) AS cost
-        FROM placements
-        GROUP BY campaign_name
+            campaigns.campaign_id,
+            campaigns.campaign_name,
+            COUNT(placements.placement_id) AS placements,
+            COALESCE(SUM(CAST(placements.cost AS REAL)), 0) AS cost
+        FROM campaigns
+        LEFT JOIN placements
+            ON placements.campaign_id = campaigns.campaign_id
+        GROUP BY campaigns.campaign_id, campaigns.campaign_name
     ),
     event_metrics AS (
         SELECT
-            placements.campaign_name,
+            placements.campaign_id,
             SUM(CASE WHEN events.event_name = 'ad_click' THEN 1 ELSE 0 END) AS clicks,
             COUNT(
                 DISTINCT CASE
@@ -124,7 +130,7 @@ CAMPAIGN_METRICS_QUERY = text(
             ) AS course_users
         FROM placements
         LEFT JOIN events ON events.placement_id = placements.placement_id
-        GROUP BY placements.campaign_name
+        GROUP BY placements.campaign_id
     ),
     candidate_lead_touches AS (
         SELECT
@@ -149,7 +155,7 @@ CAMPAIGN_METRICS_QUERY = text(
     ),
     sales_metrics AS (
         SELECT
-            placements.campaign_name,
+            placements.campaign_id,
             COUNT(DISTINCT attributed_leads.lead_id) AS leads,
             COUNT(DISTINCT orders.order_id) AS orders,
             COUNT(
@@ -171,9 +177,10 @@ CAMPAIGN_METRICS_QUERY = text(
             ON placements.placement_id = attributed_leads.placement_id
         LEFT JOIN orders ON orders.lead_id = attributed_leads.lead_id
         LEFT JOIN payments ON payments.order_id = orders.order_id
-        GROUP BY placements.campaign_name
+        GROUP BY placements.campaign_id
     )
     SELECT
+        placement_metrics.campaign_id,
         placement_metrics.campaign_name,
         placement_metrics.placements,
         placement_metrics.cost,
@@ -187,9 +194,9 @@ CAMPAIGN_METRICS_QUERY = text(
         COALESCE(sales_metrics.attributed_revenue, 0) AS attributed_revenue
     FROM placement_metrics
     LEFT JOIN event_metrics
-        ON event_metrics.campaign_name = placement_metrics.campaign_name
+        ON event_metrics.campaign_id = placement_metrics.campaign_id
     LEFT JOIN sales_metrics
-        ON sales_metrics.campaign_name = placement_metrics.campaign_name
+        ON sales_metrics.campaign_id = placement_metrics.campaign_id
     ORDER BY attributed_revenue DESC
     """
 )
@@ -217,8 +224,8 @@ FUNNEL_METRICS_QUERY = text(
             ) AS course_users
         FROM events
         JOIN placements ON placements.placement_id = events.placement_id
-        WHERE :campaign_name IS NULL
-           OR placements.campaign_name = :campaign_name
+        WHERE :campaign_id IS NULL
+           OR placements.campaign_id = :campaign_id
     ),
     candidate_lead_touches AS (
         SELECT
@@ -255,8 +262,8 @@ FUNNEL_METRICS_QUERY = text(
             ON placements.placement_id = attributed_leads.placement_id
         LEFT JOIN orders ON orders.lead_id = attributed_leads.lead_id
         LEFT JOIN payments ON payments.order_id = orders.order_id
-        WHERE :campaign_name IS NULL
-           OR placements.campaign_name = :campaign_name
+        WHERE :campaign_id IS NULL
+           OR placements.campaign_id = :campaign_id
     )
     SELECT
         COALESCE(event_metrics.clicks, 0) AS clicks,
@@ -285,14 +292,18 @@ def load_campaign_metrics(db_engine: Engine = application_engine) -> pd.DataFram
 
 
 def load_funnel_metrics(
-    campaign_name: str | None = None,
+    campaign_id: str | None = None,
     db_engine: Engine = application_engine,
 ) -> dict[str, int]:
     """Return de-duplicated funnel totals for all or one campaign."""
     with db_engine.connect() as connection:
-        row = connection.execute(
-            FUNNEL_METRICS_QUERY,
-            {"campaign_name": campaign_name},
-        ).mappings().one()
+        row = (
+            connection.execute(
+                FUNNEL_METRICS_QUERY,
+                {"campaign_id": campaign_id},
+            )
+            .mappings()
+            .one()
+        )
 
     return {metric: int(value or 0) for metric, value in row.items()}

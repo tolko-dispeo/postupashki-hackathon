@@ -1,11 +1,12 @@
+from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, JSON, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from postupashki_mvp.database import Base
 
@@ -15,7 +16,22 @@ def new_id() -> str:
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
+
+
+class Campaign(Base):
+    """A marketing campaign containing one or more placements."""
+
+    __tablename__ = "campaigns"
+
+    campaign_id: Mapped[str] = mapped_column(String(64), primary_key=True, default=new_id)
+    campaign_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utc_now
+    )
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    placements: Mapped[list[Placement]] = relationship(back_populates="campaign")
 
 
 class Placement(Base):
@@ -24,8 +40,10 @@ class Placement(Base):
     __tablename__ = "placements"
 
     placement_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    campaign_id: Mapped[str] = mapped_column(
+        ForeignKey("campaigns.campaign_id"), nullable=False, index=True
+    )
     channel_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    campaign_name: Mapped[str] = mapped_column(String(255), nullable=False)
     target_product: Mapped[str | None] = mapped_column(String(255))
     landing_url: Mapped[str] = mapped_column(String(1000), nullable=False)
     cost: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
@@ -34,14 +52,14 @@ class Placement(Base):
     )
     is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    campaign: Mapped[Campaign] = relationship(back_populates="placements")
+
 
 class Event(Base):
     """An immutable user action, for example ad_click or manager_click."""
 
     __tablename__ = "events"
-    __table_args__ = (
-        Index("ix_events_visitor_time", "visitor_id", "occurred_at"),
-    )
+    __table_args__ = (Index("ix_events_visitor_time", "visitor_id", "occurred_at"),)
 
     event_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     event_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
@@ -63,9 +81,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     lead_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
-    lead_token: Mapped[str] = mapped_column(
-        String(64), nullable=False, unique=True, default=new_id
-    )
+    lead_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, default=new_id)
     visitor_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utc_now
@@ -94,9 +110,7 @@ class Payment(Base):
     __tablename__ = "payments"
 
     payment_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
-    order_id: Mapped[str] = mapped_column(
-        ForeignKey("orders.order_id"), nullable=False, index=True
-    )
+    order_id: Mapped[str] = mapped_column(ForeignKey("orders.order_id"), nullable=False, index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -1,6 +1,8 @@
 """Database connection and schema initialization."""
 
-from sqlalchemy import create_engine
+import sqlite3
+
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -11,9 +13,20 @@ class Base(DeclarativeBase):
     """Base class shared by every database table."""
 
 
+@event.listens_for(Engine, "connect")
+def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+    """Make SQLite enforce the foreign keys declared by the ORM models."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
 def create_db_engine() -> Engine:
     settings = get_settings()
-    connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    connect_args = (
+        {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    )
     return create_engine(settings.database_url, connect_args=connect_args)
 
 
