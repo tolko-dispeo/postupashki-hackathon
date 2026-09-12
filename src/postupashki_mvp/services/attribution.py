@@ -179,6 +179,8 @@ def attribute_payments(
     placements,
     model="last_touch",
     window_days=30,
+    *,
+    is_synthetic: bool,
 ):
     """
     Атрибутирует успешные оплаты рекламным кликам.
@@ -336,6 +338,105 @@ def attribute_payments(
     return result
 
 
+def _filter_cohort(df: pd.DataFrame, is_synthetic: bool) -> pd.DataFrame:
+    if "is_synthetic" not in df.columns:
+        raise ValueError("is_synthetic column is required for cohort filtering")
+    return df[df["is_synthetic"] == is_synthetic].copy()
+
+
+def attribute_leads(
+    events,
+    leads,
+    placements,
+    model="last_touch",
+    window_days=30,
+    *,
+    is_synthetic: bool,
+):
+    if model not in SUPPORTED_MODELS:
+        raise ValueError(
+            f"Unknown attribution model: {model}. "
+            f"Expected one of {sorted(SUPPORTED_MODELS)}."
+        )
+    if window_days < 0:
+        raise ValueError("window_days must be non-negative")
+
+    events = _filter_cohort(_prepare_events(events), is_synthetic)
+    leads = _filter_cohort(_prepare_leads(leads), is_synthetic)
+    placements = _filter_cohort(_prepare_placements(placements), is_synthetic)
+
+    ad_clicks = events[events["event_name"] == TOUCH_EVENT].copy()
+    ad_clicks = ad_clicks.merge(
+        placements[["placement_id", "campaign_id"]],
+        on="placement_id",
+        how="left",
+        validate="many_to_one",
+    )
+
+    rows = []
+
+    for _, lead in leads.iterrows():
+        lead_id = lead["lead_id"]
+        visitor_id = lead["visitor_id"]
+        lead_created_at = lead["created_at"]
+
+        window_start = lead_created_at - pd.Timedelta(days=window_days)
+
+        eligible = ad_clicks[
+            (ad_clicks["visitor_id"] == visitor_id)
+            & (ad_clicks["occurred_at"] >= window_start)
+            & (ad_clicks["occurred_at"] <= lead_created_at)
+        ].copy()
+
+        if eligible.empty:
+            rows.append(
+                {
+                    "payment_id": None,
+                    "lead_id": lead_id,
+                    "campaign_id": None,
+                    "placement_id": None,
+                    "attribution_model": model,
+                    "weight": 0.0,
+                    "payment_amount": None,
+                    "attributed_revenue": None,
+                    "attribution_status": "unattributed",
+                }
+            )
+            continue
+
+        selected = _select_touches(eligible, model)
+
+        for _, touch in selected.iterrows():
+            rows.append(
+                {
+                    "payment_id": None,
+                    "lead_id": lead_id,
+                    "campaign_id": touch["campaign_id"],
+                    "placement_id": touch["placement_id"],
+                    "attribution_model": model,
+                    "weight": float(touch["weight"]),
+                    "payment_amount": None,
+                    "attributed_revenue": None,
+                    "attribution_status": "attributed",
+                }
+            )
+
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "payment_id",
+            "lead_id",
+            "campaign_id",
+            "placement_id",
+            "attribution_model",
+            "weight",
+            "payment_amount",
+            "attributed_revenue",
+            "attribution_status",
+        ],
+    )
+
+
 def attribution_summary(
     attribution_result: pd.DataFrame,
 ) -> dict:
@@ -352,9 +453,22 @@ def attribution_summary(
             "unattributed_revenue": Decimal("0.00"),
             "attribution_coverage_pct": 0.0,
         }
+        
+    payment_rows = attribution_result[attribution_result["payment_id"].notna()]
+
+    if payment_rows.empty:
+        return {
+            "successful_payments": 0,
+            "total_revenue": Decimal("0.00"),
+            "attributed_payments": 0,
+            "attributed_revenue": Decimal("0.00"),
+            "unattributed_payments": 0,
+            "unattributed_revenue": Decimal("0.00"),
+            "attribution_coverage_pct": 0.0,
+        }
 
     payment_level = (
-        attribution_result
+        payment_rows
         .groupby(
             ["payment_id", "attribution_status"],
             as_index=False,
