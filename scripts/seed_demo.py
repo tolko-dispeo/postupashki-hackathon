@@ -209,53 +209,104 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
             )
 
         if i < config["leads"]:
-            lead_time = click_time + timedelta(minutes=10)
+            manager_clicked_at = click_time + timedelta(minutes=10)
+            lead_created_at = manager_clicked_at + timedelta(seconds=1)
 
             lead = Lead(
                 visitor_id=visitor_id,
-                created_at=lead_time,
+                created_at=lead_created_at,
                 is_synthetic=True,
             )
 
             session.add(lead)
             session.flush()
 
-            session.add(
-                Event(
-                    event_name="manager_click",
-                    occurred_at=lead_time,
-                    visitor_id=visitor_id,
-                    session_id=session_id,
-                    placement_id=config["placement_id"],
-                    properties={
-                        "course_name": config["target_product"],
-                        "lead_id": lead.lead_id,
-                    },
-                    is_synthetic=True,
-                )
+            session.add_all(
+                [
+                    Event(
+                        event_name="manager_click",
+                        occurred_at=manager_clicked_at,
+                        visitor_id=visitor_id,
+                        session_id=session_id,
+                        placement_id=config["placement_id"],
+                        properties={
+                            "course_name": config["target_product"],
+                            "lead_id": lead.lead_id,
+                        },
+                        is_synthetic=True,
+                    ),
+                    Event(
+                        event_name="lead_created",
+                        occurred_at=lead_created_at,
+                        visitor_id=visitor_id,
+                        session_id=session_id,
+                        placement_id=config["placement_id"],
+                        properties={
+                            "course_name": config["target_product"],
+                            "lead_id": lead.lead_id,
+                        },
+                        is_synthetic=True,
+                    ),
+                ]
             )
 
             if i < config["orders"]:
+                order_created_at = lead_created_at + timedelta(minutes=30)
                 order = Order(
                     lead_id=lead.lead_id,
                     course_name=config["target_product"],
                     status="created",
-                    created_at=lead_time + timedelta(minutes=30),
+                    created_at=order_created_at,
                     is_synthetic=True,
                 )
 
                 session.add(order)
                 session.flush()
+                session.add(
+                    Event(
+                        event_name="order_created",
+                        occurred_at=order_created_at,
+                        visitor_id=visitor_id,
+                        session_id=session_id,
+                        placement_id=config["placement_id"],
+                        properties={
+                            "lead_id": lead.lead_id,
+                            "order_id": order.order_id,
+                            "course_name": config["target_product"],
+                            "status": "created",
+                        },
+                        is_synthetic=True,
+                    )
+                )
 
                 if i < config["payments"]:
                     order.status = "paid"
-
+                    paid_at = lead_created_at + timedelta(hours=1)
+                    payment = Payment(
+                        order_id=order.order_id,
+                        amount=config["payment_amount"],
+                        status="succeeded",
+                        paid_at=paid_at,
+                        is_synthetic=True,
+                    )
+                    session.add(payment)
+                    session.flush()
                     session.add(
-                        Payment(
-                            order_id=order.order_id,
-                            amount=config["payment_amount"],
-                            status="succeeded",
-                            paid_at=lead_time + timedelta(hours=1),
+                        Event(
+                            event_name="payment_succeeded",
+                            occurred_at=paid_at,
+                            visitor_id=visitor_id,
+                            session_id=session_id,
+                            placement_id=config["placement_id"],
+                            properties={
+                                "lead_id": lead.lead_id,
+                                "order_id": order.order_id,
+                                "payment_id": payment.payment_id,
+                                "amount": str(payment.amount),
+                                "currency": "RUB",
+                                "status": payment.status,
+                                "paid_at": paid_at.isoformat(),
+                            },
                             is_synthetic=True,
                         )
                     )
@@ -317,43 +368,92 @@ def seed_cross_campaign_journey(session) -> None:
         ]
     )
 
-    lead_time = started_at + timedelta(days=1, minutes=10)
+    manager_clicked_at = started_at + timedelta(days=1, minutes=10)
+    lead_created_at = manager_clicked_at + timedelta(seconds=1)
     lead = Lead(
         visitor_id=visitor_id,
-        created_at=lead_time,
+        created_at=lead_created_at,
         is_synthetic=True,
     )
     session.add(lead)
     session.flush()
 
-    session.add(
-        Event(
-            event_name="manager_click",
-            occurred_at=lead_time,
-            visitor_id=visitor_id,
-            session_id=session_id,
-            placement_id="plc_demo_003",
-            properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
-            is_synthetic=True,
-        )
+    session.add_all(
+        [
+            Event(
+                event_name="manager_click",
+                occurred_at=manager_clicked_at,
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
+                is_synthetic=True,
+            ),
+            Event(
+                event_name="lead_created",
+                occurred_at=lead_created_at,
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
+                is_synthetic=True,
+            ),
+        ]
     )
 
+    order_created_at = lead_created_at + timedelta(minutes=30)
     order = Order(
         lead_id=lead.lead_id,
         course_name="Career Pro",
         status="paid",
-        created_at=lead_time + timedelta(minutes=30),
+        created_at=order_created_at,
         is_synthetic=True,
     )
     session.add(order)
     session.flush()
-
     session.add(
-        Payment(
-            order_id=order.order_id,
-            amount=Decimal("12900.00"),
-            status="succeeded",
-            paid_at=lead_time + timedelta(hours=1),
+        Event(
+            event_name="order_created",
+            occurred_at=order_created_at,
+            visitor_id=visitor_id,
+            session_id=session_id,
+            placement_id="plc_demo_003",
+            properties={
+                "lead_id": lead.lead_id,
+                "order_id": order.order_id,
+                "course_name": "Career Pro",
+                "status": "created",
+            },
+            is_synthetic=True,
+        )
+    )
+
+    paid_at = lead_created_at + timedelta(hours=1)
+    payment = Payment(
+        order_id=order.order_id,
+        amount=Decimal("12900.00"),
+        status="succeeded",
+        paid_at=paid_at,
+        is_synthetic=True,
+    )
+    session.add(payment)
+    session.flush()
+    session.add(
+        Event(
+            event_name="payment_succeeded",
+            occurred_at=paid_at,
+            visitor_id=visitor_id,
+            session_id=session_id,
+            placement_id="plc_demo_003",
+            properties={
+                "lead_id": lead.lead_id,
+                "order_id": order.order_id,
+                "payment_id": payment.payment_id,
+                "amount": str(payment.amount),
+                "currency": "RUB",
+                "status": payment.status,
+                "paid_at": paid_at.isoformat(),
+            },
             is_synthetic=True,
         )
     )

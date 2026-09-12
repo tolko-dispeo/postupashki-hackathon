@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Literal
 from urllib.parse import quote
@@ -30,7 +30,6 @@ class EventCreate(BaseModel):
         "landing_view",
         "course_view",
         "course_selected",
-        "manager_click",
     ]
     placement_id: str | None = None
     session_id: str | None = None
@@ -53,15 +52,19 @@ class PlacementCreate(BaseModel):
 class PaymentCreate(BaseModel):
     order_id: str
     amount: Decimal = Field(gt=0)
+    currency: Literal["RUB"] = "RUB"
 
 
 class ManagerLinkCreate(BaseModel):
     placement_id: str
+    session_id: str | None = Field(default=None, max_length=64)
+    course_id: str | None = Field(default=None, max_length=64)
     course_name: str = Field(min_length=1, max_length=255)
 
 
 class OrderCreate(BaseModel):
     lead_token: str = Field(min_length=10, max_length=64)
+    course_id: str | None = Field(default=None, max_length=64)
     course_name: str = Field(min_length=1, max_length=255)
 
 
@@ -69,12 +72,18 @@ def tracking_url(request: Request, placement_id: str) -> str:
     return str(request.url_for("track_click", placement_id=placement_id))
 
 
+def iso_utc(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
 def campaign_content(campaign: Campaign, placements_count: int = 0) -> dict[str, object]:
     return {
         "campaign_id": campaign.campaign_id,
         "campaign_name": campaign.campaign_name,
         "placements_count": placements_count,
-        "created_at": campaign.created_at.isoformat(),
+        "created_at": iso_utc(campaign.created_at),
         "is_synthetic": campaign.is_synthetic,
     }
 
@@ -93,9 +102,24 @@ def placement_content(
         "landing_url": placement.landing_url,
         "tracking_url": tracking_url(request, placement.placement_id),
         "cost": str(placement.cost),
-        "created_at": placement.created_at.isoformat(),
+        "created_at": iso_utc(placement.created_at),
         "is_synthetic": placement.is_synthetic,
     }
+
+
+def compact_properties(**values: object) -> dict[str, object]:
+    return {key: value for key, value in values.items() if value is not None}
+
+
+def latest_visitor_context(session, visitor_id: str) -> Event | None:
+    return session.scalar(
+        select(Event)
+        .where(
+            Event.visitor_id == visitor_id,
+            Event.placement_id.is_not(None),
+        )
+        .order_by(Event.occurred_at.desc(), Event.event_id.desc())
+    )
 
 
 def set_visitor_cookie(
@@ -303,26 +327,45 @@ def create_manager_link(
                 detail="Placement not found",
             )
 
+        manager_clicked_at = datetime.now(UTC)
+        lead_created_at = manager_clicked_at + timedelta(microseconds=1)
         lead = Lead(
             visitor_id=visitor_id,
+            created_at=lead_created_at,
             is_synthetic=placement.is_synthetic,
         )
 
         session.add(lead)
         session.flush()
 
-        event = Event(
+        manager_click = Event(
             event_name="manager_click",
+            occurred_at=manager_clicked_at,
             visitor_id=visitor_id,
+            session_id=payload.session_id,
             placement_id=placement.placement_id,
-            properties={
-                "course_name": payload.course_name,
-                "lead_id": lead.lead_id,
-            },
+            properties=compact_properties(
+                lead_id=lead.lead_id,
+                course_id=payload.course_id,
+                course_name=payload.course_name,
+            ),
+            is_synthetic=placement.is_synthetic,
+        )
+        lead_created = Event(
+            event_name="lead_created",
+            occurred_at=lead_created_at,
+            visitor_id=visitor_id,
+            session_id=payload.session_id,
+            placement_id=placement.placement_id,
+            properties=compact_properties(
+                lead_id=lead.lead_id,
+                course_id=payload.course_id,
+                course_name=payload.course_name,
+            ),
             is_synthetic=placement.is_synthetic,
         )
 
-        session.add(event)
+        session.add_all([manager_click, lead_created])
         session.commit()
 
         message = (
@@ -339,6 +382,8 @@ def create_manager_link(
                 "lead_id": lead.lead_id,
                 "lead_token": lead.lead_token,
                 "visitor_id": visitor_id,
+                "manager_click_event_id": manager_click.event_id,
+                "lead_created_event_id": lead_created.event_id,
                 "telegram_url": telegram_url,
             },
         )
@@ -377,10 +422,30 @@ def create_order(payload: OrderCreate) -> JSONResponse:
             lead_id=lead.lead_id,
             course_name=payload.course_name,
             status="created",
+            created_at=datetime.now(UTC),
             is_synthetic=lead.is_synthetic,
         )
 
         session.add(order)
+        session.flush()
+
+        context = latest_visitor_context(session, lead.visitor_id)
+        order_created = Event(
+            event_name="order_created",
+            occurred_at=order.created_at,
+            visitor_id=lead.visitor_id,
+            session_id=context.session_id if context is not None else None,
+            placement_id=context.placement_id if context is not None else None,
+            properties=compact_properties(
+                lead_id=lead.lead_id,
+                order_id=order.order_id,
+                course_id=payload.course_id,
+                course_name=payload.course_name,
+                status=order.status,
+            ),
+            is_synthetic=order.is_synthetic,
+        )
+        session.add(order_created)
         session.commit()
         session.refresh(order)
 
@@ -391,6 +456,7 @@ def create_order(payload: OrderCreate) -> JSONResponse:
                 "lead_id": order.lead_id,
                 "course_name": order.course_name,
                 "status": order.status,
+                "event_id": order_created.event_id,
             },
         )
 
@@ -419,17 +485,40 @@ def create_payment(payload: PaymentCreate) -> JSONResponse:
                 detail="Successful payment already exists",
             )
 
+        lead = session.get(Lead, order.lead_id)
+        paid_at = datetime.now(UTC)
         payment = Payment(
             order_id=order.order_id,
             amount=payload.amount,
             status="succeeded",
-            paid_at=datetime.now(UTC),
+            paid_at=paid_at,
             is_synthetic=order.is_synthetic,
         )
 
         order.status = "paid"
 
         session.add(payment)
+        session.flush()
+
+        context = latest_visitor_context(session, lead.visitor_id)
+        payment_succeeded = Event(
+            event_name="payment_succeeded",
+            occurred_at=paid_at,
+            visitor_id=lead.visitor_id,
+            session_id=context.session_id if context is not None else None,
+            placement_id=context.placement_id if context is not None else None,
+            properties={
+                "lead_id": lead.lead_id,
+                "order_id": order.order_id,
+                "payment_id": payment.payment_id,
+                "amount": str(payment.amount),
+                "currency": payload.currency,
+                "status": payment.status,
+                "paid_at": iso_utc(paid_at),
+            },
+            is_synthetic=payment.is_synthetic,
+        )
+        session.add(payment_succeeded)
         session.commit()
         session.refresh(payment)
 
@@ -439,7 +528,9 @@ def create_payment(payload: PaymentCreate) -> JSONResponse:
                 "payment_id": payment.payment_id,
                 "order_id": payment.order_id,
                 "amount": str(payment.amount),
+                "currency": payload.currency,
                 "status": payment.status,
-                "paid_at": payment.paid_at.isoformat(),
+                "paid_at": iso_utc(payment.paid_at),
+                "event_id": payment_succeeded.event_id,
             },
         )
