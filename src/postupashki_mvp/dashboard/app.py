@@ -201,7 +201,34 @@ data["romi_pct"] = data.apply(
     else None,
     axis=1,
 )
+data["click_to_lead_pct"] = data.apply(
+    lambda row: (
+        row["leads"] / row["click_users"] * 100
+    )
+    if row["click_users"] > 0
+    else None,
+    axis=1,
+)
 
+# Конверсия из лида в успешную оплату.
+data["lead_to_payment_pct"] = data.apply(
+    lambda row: (
+        row["payments"] / row["leads"] * 100
+    )
+    if row["leads"] > 0
+    else None,
+    axis=1,
+)
+
+# сколько рекламных рублей приходится на одну оплату.
+data["cac"] = data.apply(
+    lambda row: (
+        row["cost"] / row["payments"]
+    )
+    if row["payments"] > 0
+    else None,
+    axis=1,
+)
 total_cost = float(data["cost"].sum())
 total_revenue = float(data["attributed_revenue"].sum())
 
@@ -294,32 +321,55 @@ st.subheader("Эффективность размещений")
 
 table = data[
     [
-        "placement_id",
         "channel_name",
         "campaign_name",
         "target_product",
-        "clicks",
+        "click_users",
         "leads",
         "payments",
+        "click_to_lead_pct",
+        "lead_to_payment_pct",
         "attributed_revenue",
         "cost",
+        "cac",
         "romi_pct",
         "is_synthetic",
     ]
-].rename(
+].copy()
+
+table = table.rename(
     columns={
-        "placement_id": "Placement ID",
         "channel_name": "Канал",
         "campaign_name": "Кампания",
         "target_product": "Продукт",
-        "clicks": "Клики",
+        "click_users": "Кликнувшие",
         "leads": "Лиды",
         "payments": "Оплаты",
+        "click_to_lead_pct": "Клик → лид, %",
+        "lead_to_payment_pct": "Лид → оплата, %",
         "attributed_revenue": "Выручка",
         "cost": "Расходы",
+        "cac": "CAC",
         "romi_pct": "ROMI, %",
         "is_synthetic": "Synthetic",
     }
+)
+
+# Красивое округление метрик.
+table["Клик → лид, %"] = table["Клик → лид, %"].round(1)
+table["Лид → оплата, %"] = table["Лид → оплата, %"].round(1)
+table["ROMI, %"] = table["ROMI, %"].round(1)
+
+# Денежные показатели форматируем для чтения.
+table["Выручка"] = table["Выручка"].apply(format_money)
+table["Расходы"] = table["Расходы"].apply(format_money)
+
+table["CAC"] = table["CAC"].apply(
+    lambda value: (
+        format_money(value)
+        if pd.notna(value)
+        else "—"
+    )
 )
 
 st.dataframe(
