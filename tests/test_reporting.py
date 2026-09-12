@@ -141,6 +141,125 @@ def test_unified_report_uses_one_metric_pipeline(report_engine, model) -> None:
     assert report["quality_issues"].empty
 
 
+@pytest.mark.parametrize(
+    ("touches_count", "amount"),
+    [(3, Decimal("250.00")), (20, Decimal("0.02"))],
+)
+def test_linear_report_handles_any_touch_count_and_money_rounding(
+    report_engine,
+    touches_count: int,
+    amount: Decimal,
+) -> None:
+    click_at = datetime(2026, 1, 1, tzinfo=UTC)
+    with Session(report_engine) as session:
+        payment = session.get(Payment, "payment_demo")
+        payment.amount = amount
+        for touch_number in range(2, touches_count + 1):
+            campaign_id = f"cmp_{touch_number}"
+            placement_id = f"plc_{touch_number}"
+            session.add(
+                Campaign(
+                    campaign_id=campaign_id,
+                    campaign_name=f"Campaign {touch_number}",
+                    created_at=click_at,
+                    is_synthetic=True,
+                )
+            )
+            session.flush()
+            session.add(
+                Placement(
+                    placement_id=placement_id,
+                    campaign_id=campaign_id,
+                    channel_name=f"Channel {touch_number}",
+                    landing_url="https://example.com",
+                    cost=Decimal("0.00"),
+                    created_at=click_at,
+                    is_synthetic=True,
+                )
+            )
+            session.flush()
+            session.add(
+                Event(
+                    event_id=f"evt_{touch_number}",
+                    event_name="ad_click",
+                    occurred_at=click_at + timedelta(minutes=touch_number),
+                    visitor_id="visitor_demo",
+                    placement_id=placement_id,
+                    properties={},
+                    is_synthetic=True,
+                )
+            )
+        session.commit()
+
+    report = build_analytics_report(
+        is_synthetic=True,
+        attribution_model="linear",
+        db_engine=report_engine,
+    )
+
+    payment_rows = report["payment_attribution"]
+    assert len(payment_rows) == touches_count
+    assert payment_rows["weight"].sum() == pytest.approx(1.0)
+    assert all(value >= 0 for value in payment_rows["attributed_revenue"])
+    assert sum(payment_rows["attributed_revenue"]) == amount
+    assert report["campaign_metrics"]["attributed_revenue"].sum() == pytest.approx(
+        float(amount)
+    )
+
+
+def test_linear_report_collapses_repeated_clicks_on_one_placement(
+    report_engine,
+) -> None:
+    with Session(report_engine) as session:
+        session.add(
+            Event(
+                event_id="evt_click_repeat",
+                event_name="ad_click",
+                occurred_at=datetime(2026, 1, 1, 0, 5, tzinfo=UTC),
+                visitor_id="visitor_demo",
+                placement_id="plc_demo",
+                properties={},
+                is_synthetic=True,
+            )
+        )
+        session.commit()
+
+    report = build_analytics_report(
+        is_synthetic=True,
+        attribution_model="linear",
+        db_engine=report_engine,
+    )
+
+    payment_rows = report["payment_attribution"]
+    assert len(payment_rows) == 1
+    assert payment_rows.iloc[0].weight == pytest.approx(1.0)
+    assert payment_rows.iloc[0].attributed_revenue == Decimal("250.00")
+
+
+def test_report_keeps_organic_lead_unattributed(report_engine) -> None:
+    with Session(report_engine) as session:
+        session.add(
+            Lead(
+                lead_id="lead_organic",
+                lead_token="lead_token_organic",
+                visitor_id="visitor_organic",
+                created_at=datetime(2026, 1, 2, tzinfo=UTC),
+                is_synthetic=True,
+            )
+        )
+        session.commit()
+
+    report = build_analytics_report(
+        is_synthetic=True,
+        attribution_model="linear",
+        db_engine=report_engine,
+    )
+
+    overall = report["overall_funnel"].iloc[0]
+    assert overall.leads == 2
+    assert report["campaign_metrics"]["lead_equivalents"].sum() == 1
+
+
 def test_report_filters_cohort_and_campaign(report_engine) -> None:
     tables = load_contract_tables(report_engine)
     real_payment_attribution = attribute_payments(

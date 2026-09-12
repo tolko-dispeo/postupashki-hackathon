@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from typing import Literal
 
 import pandas as pd
@@ -24,6 +24,37 @@ def _money(value) -> Decimal:
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )
+
+
+def _allocate_money(amount: Decimal, weights: list[float]) -> list[Decimal]:
+    """Split a monetary amount by weights without losing or inventing cents."""
+    if not weights:
+        return []
+
+    total_cents = int((_money(amount) * 100).to_integral_exact())
+    decimal_weights = [_to_decimal(weight) for weight in weights]
+    total_weight = sum(decimal_weights)
+    exact_cents = [
+        Decimal(total_cents) * weight / total_weight
+        for weight in decimal_weights
+    ]
+    allocated_cents = [
+        int(value.to_integral_value(rounding=ROUND_FLOOR))
+        for value in exact_cents
+    ]
+    remainder = total_cents - sum(allocated_cents)
+    ranked = sorted(
+        range(len(weights)),
+        key=lambda index: (
+            exact_cents[index] - Decimal(allocated_cents[index]),
+            -index,
+        ),
+        reverse=True,
+    )
+    for index in ranked[:remainder]:
+        allocated_cents[index] += 1
+
+    return [_money(Decimal(cents) / 100) for cents in allocated_cents]
 
 
 def _properties_value(properties, key):
@@ -168,9 +199,16 @@ def _select_touches(
         return selected
 
     if model == "linear":
-        selected = touches.copy()
+        selected = touches[["campaign_id", "placement_id"]].copy()
         selected["weight"] = 1.0 / len(selected)
-        return selected
+        return (
+            selected.groupby(
+                ["campaign_id", "placement_id"],
+                as_index=False,
+                sort=False,
+            )["weight"]
+            .sum()
+        )
 
     raise ValueError(
         f"Unknown attribution model: {model}. "
@@ -295,20 +333,17 @@ def attribute_payments(
             continue
 
         selected = _select_touches(eligible, model)
+        attributed_amounts = _allocate_money(
+            amount,
+            selected["weight"].astype(float).tolist(),
+        )
 
-        for index, (_, touch) in enumerate(selected.iterrows()):
+        for (_, touch), attributed in zip(
+            selected.iterrows(),
+            attributed_amounts,
+            strict=True,
+        ):
             weight = float(touch["weight"])
-
-            if index == len(selected) - 1:
-                attributed = amount - sum(
-                    row["attributed_revenue"]
-                    for row in rows
-                    if row["payment_id"] == payment_id
-                )
-            else:
-                attributed = _money(
-                    amount * _to_decimal(weight)
-                )
 
             rows.append(
                 {

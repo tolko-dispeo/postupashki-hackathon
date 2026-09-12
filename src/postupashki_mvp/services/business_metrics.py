@@ -30,6 +30,7 @@ ATTRIBUTION_COLUMNS = [
     "attributed_revenue",
     "attribution_status",
 ]
+MONEY_ROUNDING_TOLERANCE = 0.010000001
 COUNT_COLUMNS = [
     "clicks",
     "unique_click_users",
@@ -215,9 +216,17 @@ def calculate_business_metrics(
         supplied_weights[("lead" if lead_only else "payment", lid if lead_only else pid)] += weight
         allocation = lead_allocations[lid][None if lead_only else pid]
         if status == "unattributed":
-            if not missing(cid) or not missing(placement) or number(row["attributed_revenue"]) != 0:
+            invalid_money = (
+                not all(
+                    missing(row[column])
+                    for column in ("payment_amount", "attributed_revenue")
+                )
+                if lead_only
+                else number(row["attributed_revenue"]) != 0
+            )
+            if not missing(cid) or not missing(placement) or invalid_money:
                 raise ValueError(
-                    "Unattributed rows require null campaign/placement and zero revenue"
+                    "Unattributed rows require null campaign/placement and valid money fields"
                 )
             continue
         if cid not in index["campaigns"] or placement not in index["placements"]:
@@ -228,7 +237,11 @@ def calculate_business_metrics(
             raise ValueError("Attributed rows require positive weight")
         if not lead_only:
             share = number(row["attributed_revenue"])
-            if share is None or not math.isclose(share, amount * weight, abs_tol=1e-8):
+            if share is None or not math.isclose(
+                share,
+                amount * weight,
+                abs_tol=MONEY_ROUNDING_TOLERANCE,
+            ):
                 raise ValueError("attributed_revenue must equal payment_amount * weight")
         elif not all(missing(row[c]) for c in ("payment_amount", "attributed_revenue")):
             raise ValueError("Lead-only attribution must have null payment amounts")
