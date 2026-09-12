@@ -6,6 +6,7 @@ from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import Cookie, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy import func, select
@@ -28,6 +29,12 @@ from postupashki_mvp.services.reporting import (
 app = FastAPI(
     title="Postupashki Marketing Measurement MVP",
     version="0.1.0",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5173", "http://127.0.0.1:5174"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
 
