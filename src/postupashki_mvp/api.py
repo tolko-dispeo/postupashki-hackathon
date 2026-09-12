@@ -1,23 +1,23 @@
+from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Literal
-from uuid import uuid4
 from urllib.parse import quote
-from sqlalchemy import select
+from uuid import uuid4
 
-from fastapi import Cookie, FastAPI, HTTPException
+from fastapi import Cookie, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field
+from sqlalchemy import func, select
 
 from postupashki_mvp.database import SessionLocal
 from postupashki_mvp.models import (
+    Campaign,
     Event,
     Lead,
     Order,
     Payment,
     Placement,
 )
-
-from datetime import datetime, timezone
-from decimal import Decimal
 
 app = FastAPI(
     title="Postupashki Marketing Measurement MVP",
@@ -36,16 +36,67 @@ class EventCreate(BaseModel):
     session_id: str | None = None
     properties: dict[str, object] = Field(default_factory=dict)
 
+
+class CampaignCreate(BaseModel):
+    campaign_name: str = Field(min_length=1, max_length=255)
+    is_synthetic: bool = False
+
+
+class PlacementCreate(BaseModel):
+    campaign_id: str = Field(min_length=1, max_length=64)
+    channel_name: str = Field(min_length=1, max_length=255)
+    target_product: str | None = Field(default=None, max_length=255)
+    landing_url: AnyHttpUrl
+    cost: Decimal = Field(ge=0)
+
+
 class PaymentCreate(BaseModel):
     order_id: str
     amount: Decimal = Field(gt=0)
+
+
 class ManagerLinkCreate(BaseModel):
     placement_id: str
     course_name: str = Field(min_length=1, max_length=255)
 
+
 class OrderCreate(BaseModel):
     lead_token: str = Field(min_length=10, max_length=64)
     course_name: str = Field(min_length=1, max_length=255)
+
+
+def tracking_url(request: Request, placement_id: str) -> str:
+    return str(request.url_for("track_click", placement_id=placement_id))
+
+
+def campaign_content(campaign: Campaign, placements_count: int = 0) -> dict[str, object]:
+    return {
+        "campaign_id": campaign.campaign_id,
+        "campaign_name": campaign.campaign_name,
+        "placements_count": placements_count,
+        "created_at": campaign.created_at.isoformat(),
+        "is_synthetic": campaign.is_synthetic,
+    }
+
+
+def placement_content(
+    placement: Placement,
+    campaign_name: str,
+    request: Request,
+) -> dict[str, object]:
+    return {
+        "placement_id": placement.placement_id,
+        "campaign_id": placement.campaign_id,
+        "campaign_name": campaign_name,
+        "channel_name": placement.channel_name,
+        "target_product": placement.target_product,
+        "landing_url": placement.landing_url,
+        "tracking_url": tracking_url(request, placement.placement_id),
+        "cost": str(placement.cost),
+        "created_at": placement.created_at.isoformat(),
+        "is_synthetic": placement.is_synthetic,
+    }
+
 
 def set_visitor_cookie(
     response: JSONResponse | RedirectResponse,
@@ -63,6 +114,86 @@ def set_visitor_cookie(
 @app.get("/health", tags=["system"])
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/campaigns", tags=["registry"], status_code=201)
+def create_campaign(payload: CampaignCreate) -> JSONResponse:
+    campaign = Campaign(
+        campaign_name=payload.campaign_name,
+        is_synthetic=payload.is_synthetic,
+    )
+
+    with SessionLocal() as session:
+        session.add(campaign)
+        session.commit()
+        session.refresh(campaign)
+
+    return JSONResponse(status_code=201, content=campaign_content(campaign))
+
+
+@app.get("/campaigns", tags=["registry"])
+def list_campaigns() -> dict[str, object]:
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(Campaign, func.count(Placement.placement_id))
+            .outerjoin(Placement)
+            .group_by(Campaign.campaign_id)
+            .order_by(Campaign.created_at, Campaign.campaign_id)
+        ).all()
+
+        items = [campaign_content(campaign, count) for campaign, count in rows]
+
+    return {"items": items, "count": len(items)}
+
+
+@app.post("/placements", tags=["registry"], status_code=201)
+def create_placement(payload: PlacementCreate, request: Request) -> JSONResponse:
+    with SessionLocal() as session:
+        campaign = session.get(Campaign, payload.campaign_id)
+        if campaign is None:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+
+        placement = Placement(
+            campaign_id=campaign.campaign_id,
+            channel_name=payload.channel_name,
+            target_product=payload.target_product,
+            landing_url=str(payload.landing_url),
+            cost=payload.cost,
+            is_synthetic=campaign.is_synthetic,
+        )
+        session.add(placement)
+        session.commit()
+        session.refresh(placement)
+
+        content = placement_content(placement, campaign.campaign_name, request)
+
+    return JSONResponse(status_code=201, content=content)
+
+
+@app.get("/placements", tags=["registry"])
+def list_placements(
+    request: Request,
+    campaign_id: str | None = None,
+) -> dict[str, object]:
+    with SessionLocal() as session:
+        if campaign_id is not None and session.get(Campaign, campaign_id) is None:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+
+        statement = (
+            select(Placement, Campaign.campaign_name)
+            .join(Campaign)
+            .order_by(Placement.created_at, Placement.placement_id)
+        )
+        if campaign_id is not None:
+            statement = statement.where(Placement.campaign_id == campaign_id)
+
+        rows = session.execute(statement).all()
+        items = [
+            placement_content(placement, campaign_name, request)
+            for placement, campaign_name in rows
+        ]
+
+    return {"items": items, "count": len(items)}
 
 
 @app.get("/t/{placement_id}", tags=["tracking"])
@@ -85,7 +216,10 @@ def track_click(
             event_name="ad_click",
             visitor_id=visitor_id,
             placement_id=placement.placement_id,
-            properties={"source": "tracking_redirect"},
+            properties={
+                "source": "tracking_redirect",
+                "campaign_id": placement.campaign_id,
+            },
             is_synthetic=placement.is_synthetic,
         )
 
@@ -128,11 +262,7 @@ def register_site_event(
             session_id=payload.session_id,
             placement_id=payload.placement_id,
             properties=payload.properties,
-            is_synthetic=(
-                placement.is_synthetic
-                if placement is not None
-                else True
-            ),
+            is_synthetic=(placement.is_synthetic if placement is not None else True),
         )
 
         session.add(event)
@@ -152,7 +282,6 @@ def register_site_event(
         set_visitor_cookie(response, visitor_id)
 
     return response
-
 
 
 MANAGER_USERNAME = "postupashki_manager"
@@ -202,10 +331,7 @@ def create_manager_link(
             f"Код заявки: {lead.lead_token}"
         )
 
-        telegram_url = (
-            f"https://t.me/{MANAGER_USERNAME}"
-            f"?text={quote(message)}"
-        )
+        telegram_url = f"https://t.me/{MANAGER_USERNAME}?text={quote(message)}"
 
         response = JSONResponse(
             status_code=201,
@@ -226,11 +352,7 @@ def create_manager_link(
 @app.post("/orders", tags=["sales"], status_code=201)
 def create_order(payload: OrderCreate) -> JSONResponse:
     with SessionLocal() as session:
-        lead = session.scalar(
-            select(Lead).where(
-                Lead.lead_token == payload.lead_token
-            )
-        )
+        lead = session.scalar(select(Lead).where(Lead.lead_token == payload.lead_token))
 
         if lead is None:
             raise HTTPException(
@@ -272,6 +394,7 @@ def create_order(payload: OrderCreate) -> JSONResponse:
             },
         )
 
+
 @app.post("/payments", tags=["sales"], status_code=201)
 def create_payment(payload: PaymentCreate) -> JSONResponse:
     with SessionLocal() as session:
@@ -300,7 +423,7 @@ def create_payment(payload: PaymentCreate) -> JSONResponse:
             order_id=order.order_id,
             amount=payload.amount,
             status="succeeded",
-            paid_at=datetime.now(timezone.utc),
+            paid_at=datetime.now(UTC),
             is_synthetic=order.is_synthetic,
         )
 
