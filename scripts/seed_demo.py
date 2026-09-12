@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from postupashki_mvp.database import SessionLocal
@@ -10,14 +10,15 @@ from postupashki_mvp.models import (
     Placement,
 )
 
-
 DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_001",
         "channel_name": "Data Science Jobs",
-        "campaign_name": "Осенний запуск",
+        "campaign_name": "Осенний запуск ML",
+        "campaign_slug": "autumn_ml",
         "target_product": "ML Start",
         "cost": Decimal("25000.00"),
+        "payment_amount": Decimal("8950.00"),
         "clicks": 80,
         "landings": 70,
         "courses": 35,
@@ -28,9 +29,11 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_002",
         "channel_name": "Python для всех",
-        "campaign_name": "Осенний запуск",
+        "campaign_name": "Осенний запуск ML",
+        "campaign_slug": "autumn_ml",
         "target_product": "ML Start",
         "cost": Decimal("18000.00"),
+        "payment_amount": Decimal("8950.00"),
         "clicks": 65,
         "landings": 52,
         "courses": 24,
@@ -41,9 +44,11 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_003",
         "channel_name": "Карьера BigTech",
-        "campaign_name": "Осенний запуск",
-        "target_product": "ML Start",
+        "campaign_name": "Карьерный интенсив",
+        "campaign_slug": "career_intensive",
+        "target_product": "Career Pro",
         "cost": Decimal("30000.00"),
+        "payment_amount": Decimal("12900.00"),
         "clicks": 110,
         "landings": 90,
         "courses": 45,
@@ -53,16 +58,48 @@ DEMO_PLACEMENTS = [
     },
     {
         "placement_id": "plc_demo_004",
+        "channel_name": "Стажировки IT",
+        "campaign_name": "Карьерный интенсив",
+        "campaign_slug": "career_intensive",
+        "target_product": "Career Pro",
+        "cost": Decimal("22000.00"),
+        "payment_amount": Decimal("12900.00"),
+        "clicks": 75,
+        "landings": 61,
+        "courses": 28,
+        "leads": 9,
+        "orders": 5,
+        "payments": 4,
+    },
+    {
+        "placement_id": "plc_demo_005",
         "channel_name": "Студенты IT",
-        "campaign_name": "Осенний запуск",
-        "target_product": "ML Start",
+        "campaign_name": "Подготовка к поступлению",
+        "campaign_slug": "exam_prep",
+        "target_product": "Exam Start",
         "cost": Decimal("15000.00"),
+        "payment_amount": Decimal("6950.00"),
         "clicks": 70,
         "landings": 58,
         "courses": 16,
         "leads": 5,
         "orders": 2,
         "payments": 1,
+    },
+    {
+        "placement_id": "plc_demo_006",
+        "channel_name": "Абитуриенты 2027",
+        "campaign_name": "Подготовка к поступлению",
+        "campaign_slug": "exam_prep",
+        "target_product": "Exam Start",
+        "cost": Decimal("20000.00"),
+        "payment_amount": Decimal("6950.00"),
+        "clicks": 95,
+        "landings": 76,
+        "courses": 34,
+        "leads": 11,
+        "orders": 6,
+        "payments": 3,
     },
 ]
 
@@ -103,7 +140,7 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
             "https://postupashki.ru/"
             f"?utm_source=telegram"
             f"&utm_medium=post"
-            f"&utm_campaign=autumn_launch"
+            f"&utm_campaign={config['campaign_slug']}"
             f"&utm_content={config['placement_id']}"
         ),
         cost=config["cost"],
@@ -114,7 +151,7 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
     session.flush()
 
     base_time = (
-        datetime.now(timezone.utc)
+        datetime.now(UTC)
         - timedelta(days=7)
         + timedelta(hours=placement_number * 4)
     )
@@ -208,12 +245,110 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
                     session.add(
                         Payment(
                             order_id=order.order_id,
-                            amount=Decimal("8950.00"),
+                            amount=config["payment_amount"],
                             status="succeeded",
                             paid_at=lead_time + timedelta(hours=1),
                             is_synthetic=True,
                         )
                     )
+
+
+def seed_cross_campaign_journey(session) -> None:
+    """Create one visitor whose sale belongs to the latest campaign touch."""
+    visitor_id = "shared_cross_campaign_001"
+    session_id = "shared_cross_campaign_session_001"
+    started_at = datetime.now(UTC) - timedelta(days=2)
+
+    session.add_all(
+        [
+            Event(
+                event_name="ad_click",
+                occurred_at=started_at,
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_001",
+                properties={"source": "synthetic_cross_campaign"},
+                is_synthetic=True,
+            ),
+            Event(
+                event_name="landing_view",
+                occurred_at=started_at + timedelta(minutes=2),
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_001",
+                properties={"page": "landing"},
+                is_synthetic=True,
+            ),
+            Event(
+                event_name="ad_click",
+                occurred_at=started_at + timedelta(days=1),
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"source": "synthetic_cross_campaign"},
+                is_synthetic=True,
+            ),
+            Event(
+                event_name="landing_view",
+                occurred_at=started_at + timedelta(days=1, minutes=2),
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"page": "landing"},
+                is_synthetic=True,
+            ),
+            Event(
+                event_name="course_selected",
+                occurred_at=started_at + timedelta(days=1, minutes=5),
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"course_name": "Career Pro"},
+                is_synthetic=True,
+            ),
+        ]
+    )
+
+    lead_time = started_at + timedelta(days=1, minutes=10)
+    lead = Lead(
+        visitor_id=visitor_id,
+        created_at=lead_time,
+        is_synthetic=True,
+    )
+    session.add(lead)
+    session.flush()
+
+    session.add(
+        Event(
+            event_name="manager_click",
+            occurred_at=lead_time,
+            visitor_id=visitor_id,
+            session_id=session_id,
+            placement_id="plc_demo_003",
+            properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
+            is_synthetic=True,
+        )
+    )
+
+    order = Order(
+        lead_id=lead.lead_id,
+        course_name="Career Pro",
+        status="paid",
+        created_at=lead_time + timedelta(minutes=30),
+        is_synthetic=True,
+    )
+    session.add(order)
+    session.flush()
+
+    session.add(
+        Payment(
+            order_id=order.order_id,
+            amount=Decimal("12900.00"),
+            status="succeeded",
+            paid_at=lead_time + timedelta(hours=1),
+            is_synthetic=True,
+        )
+    )
 
 
 def main() -> None:
@@ -227,13 +362,16 @@ def main() -> None:
                 number,
             )
 
+        seed_cross_campaign_journey(session)
+
         session.commit()
 
     print("Synthetic demo data created successfully.")
-    print("Placements: 4")
-    print("Clicks: 325")
-    print("Leads: 42")
-    print("Payments: 15")
+    print("Campaigns: 3")
+    print("Placements: 6")
+    print("Clicks: 497")
+    print("Leads: 63")
+    print("Payments: 23")
 
 
 if __name__ == "__main__":
