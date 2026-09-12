@@ -1,6 +1,8 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from math import isfinite
+from threading import Lock
+from time import monotonic
 from typing import Literal
 from urllib.parse import quote
 from uuid import uuid4
@@ -36,6 +38,14 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
+
+
+ANALYTICS_CACHE_TTL_SECONDS = 5.0
+_analytics_cache: dict[
+    tuple[str, str, str | None],
+    tuple[float, dict[str, object]],
+] = {}
+_analytics_cache_lock = Lock()
 
 
 class EventCreate(BaseModel):
@@ -171,14 +181,32 @@ def analytics_report(
     attribution_model: Literal["last_touch", "first_touch", "linear"],
     campaign_id: str | None,
 ) -> dict[str, object]:
+    cache_key = (data_kind, attribution_model, campaign_id)
+
     try:
-        return build_analytics_report(
-            is_synthetic=data_kind == "synthetic",
-            attribution_model=attribution_model,
-            campaign_id=campaign_id,
-        )
+        # The frontend requests four views of the same report in parallel. Keep the
+        # calculation under one lock so the first request builds it and the rest
+        # reuse that result instead of repeating the full attribution pipeline.
+        with _analytics_cache_lock:
+            cached = _analytics_cache.get(cache_key)
+            now = monotonic()
+            if cached is not None and now - cached[0] < ANALYTICS_CACHE_TTL_SECONDS:
+                return cached[1]
+
+            report = build_analytics_report(
+                is_synthetic=data_kind == "synthetic",
+                attribution_model=attribution_model,
+                campaign_id=campaign_id,
+            )
+            _analytics_cache[cache_key] = (monotonic(), report)
+            return report
     except CampaignNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+def invalidate_analytics_cache() -> None:
+    with _analytics_cache_lock:
+        _analytics_cache.clear()
 
 
 def latest_visitor_context(session, visitor_id: str) -> Event | None:
@@ -361,6 +389,7 @@ def create_campaign(payload: CampaignCreate) -> JSONResponse:
     with SessionLocal() as session:
         session.add(campaign)
         session.commit()
+        invalidate_analytics_cache()
         session.refresh(campaign)
 
     return JSONResponse(status_code=201, content=campaign_content(campaign))
@@ -398,6 +427,7 @@ def create_placement(payload: PlacementCreate, request: Request) -> JSONResponse
         )
         session.add(placement)
         session.commit()
+        invalidate_analytics_cache()
         session.refresh(placement)
 
         content = placement_content(placement, campaign.campaign_name, request)
@@ -460,6 +490,7 @@ def track_click(
 
         session.add(event)
         session.commit()
+        invalidate_analytics_cache()
 
         response = RedirectResponse(
             url=placement.landing_url,
@@ -502,6 +533,7 @@ def register_site_event(
 
         session.add(event)
         session.commit()
+        invalidate_analytics_cache()
         session.refresh(event)
 
     response = JSONResponse(
@@ -578,6 +610,7 @@ def create_manager_link(
 
         session.add_all([manager_click, lead_created])
         session.commit()
+        invalidate_analytics_cache()
 
         message = (
             f"Здравствуйте! Хочу узнать о курсе "
@@ -658,6 +691,7 @@ def create_order(payload: OrderCreate) -> JSONResponse:
         )
         session.add(order_created)
         session.commit()
+        invalidate_analytics_cache()
         session.refresh(order)
 
         return JSONResponse(
@@ -731,6 +765,7 @@ def create_payment(payload: PaymentCreate) -> JSONResponse:
         )
         session.add(payment_succeeded)
         session.commit()
+        invalidate_analytics_cache()
         session.refresh(payment)
 
         return JSONResponse(
