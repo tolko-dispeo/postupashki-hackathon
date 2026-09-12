@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from postupashki_mvp.database import SessionLocal
 from postupashki_mvp.models import (
+    Campaign,
     Event,
     Lead,
     Order,
@@ -10,11 +11,26 @@ from postupashki_mvp.models import (
     Placement,
 )
 
+DEMO_CAMPAIGNS = [
+    {
+        "campaign_id": "cmp_autumn_ml",
+        "campaign_name": "Осенний запуск ML",
+    },
+    {
+        "campaign_id": "cmp_career_intensive",
+        "campaign_name": "Карьерный интенсив",
+    },
+    {
+        "campaign_id": "cmp_exam_prep",
+        "campaign_name": "Подготовка к поступлению",
+    },
+]
+
 DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_001",
         "channel_name": "Data Science Jobs",
-        "campaign_name": "Осенний запуск ML",
+        "campaign_id": "cmp_autumn_ml",
         "campaign_slug": "autumn_ml",
         "target_product": "ML Start",
         "cost": Decimal("25000.00"),
@@ -29,7 +45,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_002",
         "channel_name": "Python для всех",
-        "campaign_name": "Осенний запуск ML",
+        "campaign_id": "cmp_autumn_ml",
         "campaign_slug": "autumn_ml",
         "target_product": "ML Start",
         "cost": Decimal("18000.00"),
@@ -44,7 +60,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_003",
         "channel_name": "Карьера BigTech",
-        "campaign_name": "Карьерный интенсив",
+        "campaign_id": "cmp_career_intensive",
         "campaign_slug": "career_intensive",
         "target_product": "Career Pro",
         "cost": Decimal("30000.00"),
@@ -59,7 +75,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_004",
         "channel_name": "Стажировки IT",
-        "campaign_name": "Карьерный интенсив",
+        "campaign_id": "cmp_career_intensive",
         "campaign_slug": "career_intensive",
         "target_product": "Career Pro",
         "cost": Decimal("22000.00"),
@@ -74,7 +90,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_005",
         "channel_name": "Студенты IT",
-        "campaign_name": "Подготовка к поступлению",
+        "campaign_id": "cmp_exam_prep",
         "campaign_slug": "exam_prep",
         "target_product": "Exam Start",
         "cost": Decimal("15000.00"),
@@ -89,7 +105,7 @@ DEMO_PLACEMENTS = [
     {
         "placement_id": "plc_demo_006",
         "channel_name": "Абитуриенты 2027",
-        "campaign_name": "Подготовка к поступлению",
+        "campaign_id": "cmp_exam_prep",
         "campaign_slug": "exam_prep",
         "target_product": "Exam Start",
         "cost": Decimal("20000.00"),
@@ -107,25 +123,21 @@ DEMO_PLACEMENTS = [
 def clear_synthetic_data(session) -> None:
     # Удаляем только synthetic-данные.
     # Порядок важен: сначала дочерние сущности.
-    session.query(Payment).filter(
-        Payment.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Payment).filter(Payment.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Order).filter(
-        Order.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Order).filter(Order.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Lead).filter(
-        Lead.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Lead).filter(Lead.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Event).filter(
-        Event.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Event).filter(Event.is_synthetic.is_(True)).delete(synchronize_session=False)
 
-    session.query(Placement).filter(
-        Placement.is_synthetic.is_(True)
-    ).delete(synchronize_session=False)
+    session.query(Placement).filter(Placement.is_synthetic.is_(True)).delete(
+        synchronize_session=False
+    )
+
+    session.query(Campaign).filter(Campaign.is_synthetic.is_(True)).delete(
+        synchronize_session=False
+    )
 
     session.commit()
 
@@ -133,8 +145,8 @@ def clear_synthetic_data(session) -> None:
 def seed_placement(session, config: dict, placement_number: int) -> None:
     placement = Placement(
         placement_id=config["placement_id"],
+        campaign_id=config["campaign_id"],
         channel_name=config["channel_name"],
-        campaign_name=config["campaign_name"],
         target_product=config["target_product"],
         landing_url=(
             "https://postupashki.ru/"
@@ -150,11 +162,7 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
     session.add(placement)
     session.flush()
 
-    base_time = (
-        datetime.now(UTC)
-        - timedelta(days=7)
-        + timedelta(hours=placement_number * 4)
-    )
+    base_time = datetime.now(UTC) - timedelta(days=7) + timedelta(hours=placement_number * 4)
 
     for i in range(config["clicks"]):
         visitor_id = f"{config['placement_id']}_visitor_{i:03d}"
@@ -201,53 +209,104 @@ def seed_placement(session, config: dict, placement_number: int) -> None:
             )
 
         if i < config["leads"]:
-            lead_time = click_time + timedelta(minutes=10)
+            manager_clicked_at = click_time + timedelta(minutes=10)
+            lead_created_at = manager_clicked_at + timedelta(seconds=1)
 
             lead = Lead(
                 visitor_id=visitor_id,
-                created_at=lead_time,
+                created_at=lead_created_at,
                 is_synthetic=True,
             )
 
             session.add(lead)
             session.flush()
 
-            session.add(
-                Event(
-                    event_name="manager_click",
-                    occurred_at=lead_time,
-                    visitor_id=visitor_id,
-                    session_id=session_id,
-                    placement_id=config["placement_id"],
-                    properties={
-                        "course_name": config["target_product"],
-                        "lead_id": lead.lead_id,
-                    },
-                    is_synthetic=True,
-                )
+            session.add_all(
+                [
+                    Event(
+                        event_name="manager_click",
+                        occurred_at=manager_clicked_at,
+                        visitor_id=visitor_id,
+                        session_id=session_id,
+                        placement_id=config["placement_id"],
+                        properties={
+                            "course_name": config["target_product"],
+                            "lead_id": lead.lead_id,
+                        },
+                        is_synthetic=True,
+                    ),
+                    Event(
+                        event_name="lead_created",
+                        occurred_at=lead_created_at,
+                        visitor_id=visitor_id,
+                        session_id=session_id,
+                        placement_id=config["placement_id"],
+                        properties={
+                            "course_name": config["target_product"],
+                            "lead_id": lead.lead_id,
+                        },
+                        is_synthetic=True,
+                    ),
+                ]
             )
 
             if i < config["orders"]:
+                order_created_at = lead_created_at + timedelta(minutes=30)
                 order = Order(
                     lead_id=lead.lead_id,
                     course_name=config["target_product"],
                     status="created",
-                    created_at=lead_time + timedelta(minutes=30),
+                    created_at=order_created_at,
                     is_synthetic=True,
                 )
 
                 session.add(order)
                 session.flush()
+                session.add(
+                    Event(
+                        event_name="order_created",
+                        occurred_at=order_created_at,
+                        visitor_id=visitor_id,
+                        session_id=session_id,
+                        placement_id=config["placement_id"],
+                        properties={
+                            "lead_id": lead.lead_id,
+                            "order_id": order.order_id,
+                            "course_name": config["target_product"],
+                            "status": "created",
+                        },
+                        is_synthetic=True,
+                    )
+                )
 
                 if i < config["payments"]:
                     order.status = "paid"
-
+                    paid_at = lead_created_at + timedelta(hours=1)
+                    payment = Payment(
+                        order_id=order.order_id,
+                        amount=config["payment_amount"],
+                        status="succeeded",
+                        paid_at=paid_at,
+                        is_synthetic=True,
+                    )
+                    session.add(payment)
+                    session.flush()
                     session.add(
-                        Payment(
-                            order_id=order.order_id,
-                            amount=config["payment_amount"],
-                            status="succeeded",
-                            paid_at=lead_time + timedelta(hours=1),
+                        Event(
+                            event_name="payment_succeeded",
+                            occurred_at=paid_at,
+                            visitor_id=visitor_id,
+                            session_id=session_id,
+                            placement_id=config["placement_id"],
+                            properties={
+                                "lead_id": lead.lead_id,
+                                "order_id": order.order_id,
+                                "payment_id": payment.payment_id,
+                                "amount": str(payment.amount),
+                                "currency": "RUB",
+                                "status": payment.status,
+                                "paid_at": paid_at.isoformat(),
+                            },
                             is_synthetic=True,
                         )
                     )
@@ -309,43 +368,92 @@ def seed_cross_campaign_journey(session) -> None:
         ]
     )
 
-    lead_time = started_at + timedelta(days=1, minutes=10)
+    manager_clicked_at = started_at + timedelta(days=1, minutes=10)
+    lead_created_at = manager_clicked_at + timedelta(seconds=1)
     lead = Lead(
         visitor_id=visitor_id,
-        created_at=lead_time,
+        created_at=lead_created_at,
         is_synthetic=True,
     )
     session.add(lead)
     session.flush()
 
-    session.add(
-        Event(
-            event_name="manager_click",
-            occurred_at=lead_time,
-            visitor_id=visitor_id,
-            session_id=session_id,
-            placement_id="plc_demo_003",
-            properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
-            is_synthetic=True,
-        )
+    session.add_all(
+        [
+            Event(
+                event_name="manager_click",
+                occurred_at=manager_clicked_at,
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
+                is_synthetic=True,
+            ),
+            Event(
+                event_name="lead_created",
+                occurred_at=lead_created_at,
+                visitor_id=visitor_id,
+                session_id=session_id,
+                placement_id="plc_demo_003",
+                properties={"course_name": "Career Pro", "lead_id": lead.lead_id},
+                is_synthetic=True,
+            ),
+        ]
     )
 
+    order_created_at = lead_created_at + timedelta(minutes=30)
     order = Order(
         lead_id=lead.lead_id,
         course_name="Career Pro",
         status="paid",
-        created_at=lead_time + timedelta(minutes=30),
+        created_at=order_created_at,
         is_synthetic=True,
     )
     session.add(order)
     session.flush()
-
     session.add(
-        Payment(
-            order_id=order.order_id,
-            amount=Decimal("12900.00"),
-            status="succeeded",
-            paid_at=lead_time + timedelta(hours=1),
+        Event(
+            event_name="order_created",
+            occurred_at=order_created_at,
+            visitor_id=visitor_id,
+            session_id=session_id,
+            placement_id="plc_demo_003",
+            properties={
+                "lead_id": lead.lead_id,
+                "order_id": order.order_id,
+                "course_name": "Career Pro",
+                "status": "created",
+            },
+            is_synthetic=True,
+        )
+    )
+
+    paid_at = lead_created_at + timedelta(hours=1)
+    payment = Payment(
+        order_id=order.order_id,
+        amount=Decimal("12900.00"),
+        status="succeeded",
+        paid_at=paid_at,
+        is_synthetic=True,
+    )
+    session.add(payment)
+    session.flush()
+    session.add(
+        Event(
+            event_name="payment_succeeded",
+            occurred_at=paid_at,
+            visitor_id=visitor_id,
+            session_id=session_id,
+            placement_id="plc_demo_003",
+            properties={
+                "lead_id": lead.lead_id,
+                "order_id": order.order_id,
+                "payment_id": payment.payment_id,
+                "amount": str(payment.amount),
+                "currency": "RUB",
+                "status": payment.status,
+                "paid_at": paid_at.isoformat(),
+            },
             is_synthetic=True,
         )
     )
@@ -354,6 +462,18 @@ def seed_cross_campaign_journey(session) -> None:
 def main() -> None:
     with SessionLocal() as session:
         clear_synthetic_data(session)
+
+        session.add_all(
+            [
+                Campaign(
+                    campaign_id=config["campaign_id"],
+                    campaign_name=config["campaign_name"],
+                    is_synthetic=True,
+                )
+                for config in DEMO_CAMPAIGNS
+            ]
+        )
+        session.flush()
 
         for number, placement_config in enumerate(DEMO_PLACEMENTS):
             seed_placement(
