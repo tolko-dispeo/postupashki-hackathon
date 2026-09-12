@@ -270,3 +270,116 @@ def test_models_are_selected_explicitly(dataset):
     another["attribution_model"] = "first_touch"
     result = calculate((tables, pd.concat([attr, another])))
     assert result["campaign_metrics"].attributed_revenue.sum() == 1300
+
+
+@pytest.mark.parametrize("model", ["last_touch", "first_touch"])
+def test_single_touch_lead_and_order_equivalents_match_counts(dataset, model):
+    tables, attr = dataset
+    attr["attribution_model"] = model
+    campaigns = calculate((tables, attr), model=model)["campaign_metrics"]
+    assert campaigns.lead_equivalents.tolist() == campaigns.leads.tolist()
+    assert campaigns.order_equivalents.tolist() == campaigns.orders.tolist()
+
+
+@pytest.fixture
+def split_lead(dataset):
+    tables, attr = dataset
+    for name, key in [("leads", "lead_id"), ("orders", "order_id"),
+                      ("payments", "payment_id")]:
+        tables[name] = tables[name].loc[tables[name][key] == "a"].copy()
+    tables["events"] = tables["events"].loc[
+        tables["events"].visitor_id == "shared"
+    ].copy()
+    # Both campaigns have one course visitor; the lead's supplied shares are 0.5/0.5.
+    event = tables["events"].iloc[0].copy()
+    event[["event_id", "placement_id", "event_name"]] = ["course-b", "b", "course_view"]
+    tables["events"] = pd.concat([tables["events"], event.to_frame().T], ignore_index=True)
+    lead_rows = attr.iloc[[0, 0]].copy()
+    lead_rows[["payment_id", "payment_amount", "attributed_revenue"]] = None
+    lead_rows["attribution_model"] = "linear"
+    lead_rows["weight"] = 0.5
+    lead_rows["campaign_id"] = ["a", "b"]
+    lead_rows["placement_id"] = ["a", "b"]
+    return tables, lead_rows
+
+
+def test_linear_lead_level_equivalents_conserve_one_lead_and_order(split_lead):
+    result = calculate(split_lead, model="linear")
+    campaigns = result["campaign_metrics"].set_index("campaign_id")
+    assert campaigns.lead_equivalents.sum() == 1
+    assert campaigns.order_equivalents.sum() == 1
+    for cid, cost in [("a", 100), ("b", 200)]:
+        row = campaigns.loc[cid]
+        assert row.leads == row.orders == 1
+        assert row.lead_equivalents == row.order_equivalents == 0.5
+        assert row.course_to_lead_pct == 50
+        assert row.lead_to_order_pct == 100
+        assert row.cpl == row.cpo == cost / 0.5
+    assert campaigns.loc["zero", "lead_equivalents"] == 0
+    assert campaigns.loc["zero", "order_equivalents"] == 0
+    assert campaigns.loc["zero", "cpl"] is None
+    assert campaigns.loc["zero", "cpo"] is None
+    overall = result["overall_funnel"].iloc[0]
+    assert overall.leads == overall.orders == 1
+
+
+@pytest.mark.parametrize("explicit_lead_rows", [True, False])
+def test_linear_repeated_payments_do_not_multiply_lead_weights(split_lead, explicit_lead_rows):
+    tables, lead_rows = split_lead
+    payment = tables["payments"].iloc[0].copy()
+    payment["payment_id"] = "second"
+    tables["payments"] = pd.concat([tables["payments"], payment.to_frame().T], ignore_index=True)
+    allocations = [lead_rows] if explicit_lead_rows else []
+    for pid in ["a", "second"]:
+        rows = lead_rows.copy()
+        rows["payment_id"] = pid
+        rows["payment_amount"] = 500
+        rows["attributed_revenue"] = 250
+        allocations.append(rows)
+    result = calculate((tables, pd.concat(allocations)), model="linear")
+    campaigns = result["campaign_metrics"]
+    assert campaigns.lead_equivalents.sum() == 1
+    assert campaigns.order_equivalents.sum() == 1
+    assert campaigns.payment_equivalents.sum() == 2
+
+
+def test_each_order_inherits_lead_weights_without_requiring_payment(split_lead):
+    tables, attr = split_lead
+    tables["payments"] = tables["payments"].iloc[:0]
+    order = tables["orders"].iloc[0].copy()
+    order["order_id"] = "second"
+    tables["orders"] = pd.concat([tables["orders"], order.to_frame().T], ignore_index=True)
+    result = calculate((tables, attr), model="linear")
+    campaigns = result["campaign_metrics"].set_index("campaign_id")
+    assert campaigns.lead_equivalents.sum() == 1
+    assert campaigns.order_equivalents.sum() == 2
+    assert campaigns.loc["a", "order_equivalents"] == 1
+    assert campaigns.loc["a", "lead_to_order_pct"] == 200
+    assert campaigns.loc["a", "cpo"] == 100
+    assert result["overall_funnel"].iloc[0].orders == 2
+
+
+def test_explicit_lead_weights_take_priority_over_different_payment_weights(split_lead):
+    tables, lead_rows = split_lead
+    payments = lead_rows.iloc[[0]].copy()
+    payments["payment_id"] = "a"
+    payments["payment_amount"] = payments["attributed_revenue"] = 500
+    payments["weight"] = 1.0
+    result = calculate((tables, pd.concat([lead_rows, payments])), model="linear")
+    campaigns = result["campaign_metrics"].set_index("campaign_id")
+    assert campaigns.loc["a", "lead_equivalents"] == 0.5
+    assert campaigns.loc["b", "lead_equivalents"] == 0.5
+    assert campaigns.loc["a", "payment_equivalents"] == 1
+
+
+def test_conflicting_payment_distributions_require_explicit_lead_weights(split_lead):
+    tables, lead_rows = split_lead
+    payment = tables["payments"].iloc[0].copy()
+    payment["payment_id"] = "second"
+    tables["payments"] = pd.concat([tables["payments"], payment.to_frame().T], ignore_index=True)
+    attr = lead_rows.copy()
+    attr["payment_id"] = ["a", "second"]
+    attr["weight"] = 1.0
+    attr["payment_amount"] = attr["attributed_revenue"] = 500
+    with pytest.raises(ValueError, match="lead-level"):
+        calculate((tables, attr), model="linear")

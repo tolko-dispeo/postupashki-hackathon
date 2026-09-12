@@ -149,22 +149,44 @@ is_synthetic и attribution_model присутствуют в результат
 | course_users | Уникальные visitor_id с course_view **или** course_selected, без удвоения |
 | leads | Уникальные lead_id из валидных переданных атрибуционных связей |
 | orders | Уникальные order_id этих лидов |
+| lead_equivalents | Для linear сумма весов lead-level атрибуции кампании; для first_touch/last_touch равно leads |
+| order_equivalents | Для linear каждый заказ наследует вес своего лида; для first_touch/last_touch равно orders |
 | successful_payments | Уникальные payment_id успешных оплат с долей этой кампании |
 | payment_equivalents | Сумма валидных весов успешных оплат |
 | attributed_revenue | Сумма переданных и проверенных долей выручки |
 | cost | Сумма cost размещений кампании |
 | click_to_landing_pct | landing_users / unique_click_users × 100 |
 | landing_to_course_pct | course_users / landing_users × 100 |
-| course_to_lead_pct | leads / course_users × 100 |
-| lead_to_order_pct | orders / leads × 100 |
+| course_to_lead_pct | L / course_users × 100 |
+| lead_to_order_pct | O / L × 100 |
 | order_to_payment_pct | P / orders × 100 |
-| cpl | cost / leads |
-| cpo | cost / orders |
+| cpl | cost / L |
+| cpo | cost / O |
 | cac | cost / P |
 | average_payment | attributed_revenue / P |
 | romi_pct | (attributed_revenue − cost) / cost × 100 |
 
 Для linear P = payment_equivalents; для остальных моделей P = successful_payments.
+Для linear L = lead_equivalents и O = order_equivalents; для first_touch/last_touch
+L = leads и O = orders. Формула order_to_payment_pct остаётся прежней.
+
+При linear поля **leads и orders неаддитивны между кампаниями**: один лид и его
+заказ могут присутствовать в каждой из нескольких кампаний. Для суммирования
+используются lead_equivalents и order_equivalents. При полном валидном распределении
+весов лида (сумма 1) суммы эквивалентов сохраняют количество атрибутированных лидов
+и их заказов. Например, один лид и один заказ с весами 0.5/0.5 дают каждой из двух
+кампаний по 0.5 лида и заказа; overall_funnel по-прежнему содержит один лид и заказ.
+Каждый дополнительный заказ наследует то же распределение своего лида.
+
+Явные lead-level строки определяют веса лида независимо от количества его оплат.
+Для совместимости с прежним payment-only входом используется одно уже переданное
+распределение весов на лид, без суммирования по повторным оплатам. Если распределения
+его оплат различаются, требуются явные lead-level строки (иначе ValueError).
+Веса нескольких размещений одной кампании складываются внутри одного распределения.
+Модуль не выбирает касания и не вычисляет веса самостоятельно. При неполной
+атрибуции или исключении касания вне окна учитываются только валидные переданные
+доли, без нормализации остатка до единицы.
+
 Сырой distinct successful_payments неаддитивен при linear: одна оплата может
 присутствовать в двух кампаниях. Для суммирования распределённых оплат используется
 **только payment_equivalents**. Здесь CAC имеет заданный в задаче смысл цены оплаты,

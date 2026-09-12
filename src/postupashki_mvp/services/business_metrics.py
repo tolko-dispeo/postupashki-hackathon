@@ -54,6 +54,8 @@ RATIO_COLUMNS = [
 METRIC_COLUMNS = (
     COUNT_COLUMNS
     + [
+        "lead_equivalents",
+        "order_equivalents",
         "payment_equivalents",
         "attributed_revenue",
         "cost",
@@ -67,18 +69,20 @@ def _ratio(numerator, denominator, scale=1):
 
 
 def _ratios(row, *, linear):
+    leads = row["lead_equivalents"] if linear else row["leads"]
+    orders = row["order_equivalents"] if linear else row["orders"]
     payments = row["payment_equivalents"] if linear else row["successful_payments"]
     for name, numerator, denominator in (
         ("click_to_landing_pct", row["landing_users"], row["unique_click_users"]),
         ("landing_to_course_pct", row["course_users"], row["landing_users"]),
-        ("course_to_lead_pct", row["leads"], row["course_users"]),
-        ("lead_to_order_pct", row["orders"], row["leads"]),
+        ("course_to_lead_pct", leads, row["course_users"]),
+        ("lead_to_order_pct", orders, leads),
         ("order_to_payment_pct", payments, row["orders"]),
     ):
         row[name] = _ratio(numerator, denominator, 100)
     row.update(
-        cpl=_ratio(row["cost"], row["leads"]),
-        cpo=_ratio(row["cost"], row["orders"]),
+        cpl=_ratio(row["cost"], leads),
+        cpo=_ratio(row["cost"], orders),
         cac=_ratio(row["cost"], payments),
         average_payment=_ratio(row["attributed_revenue"], payments),
         romi_pct=_ratio(row["attributed_revenue"] - row["cost"], row["cost"], 100),
@@ -170,6 +174,8 @@ def calculate_business_metrics(
     equivalents = defaultdict(float)
     credited = defaultdict(float)
     supplied_weights = defaultdict(float)
+    # Keep distributions separate: payments must never multiply a lead's weight.
+    lead_allocations = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     seen = set()
     for row in attr.to_dict("records"):
         pid, lid = row["payment_id"], row["lead_id"]
@@ -207,6 +213,7 @@ def calculate_business_metrics(
             raise ValueError("Duplicate attribution allocation")
         seen.add(identity)
         supplied_weights[("lead" if lead_only else "payment", lid if lead_only else pid)] += weight
+        allocation = lead_allocations[lid][None if lead_only else pid]
         if status == "unattributed":
             if not missing(cid) or not missing(placement) or number(row["attributed_revenue"]) != 0:
                 raise ValueError(
@@ -229,6 +236,7 @@ def calculate_business_metrics(
         if (lid, placement) not in candidate_touches:
             continue
         campaign_leads[cid].add(lid)
+        allocation[cid] += weight
         if not lead_only and pid in payments:
             campaign_payments[cid].add(pid)
             revenue[cid] += share
@@ -239,6 +247,26 @@ def calculate_business_metrics(
 
     rows = []
     linear = attribution_model == "linear"
+    lead_weights = {}
+    if linear:
+        for lid, sources in lead_allocations.items():
+            if None in sources:
+                # Explicit lead-level attribution is authoritative, including unpaid leads.
+                lead_weights[lid] = sources[None]
+            else:
+                # Backward compatibility: consume one supplied distribution, not its
+                # sum over payments. Conflicting distributions need lead-level input.
+                distributions = list(sources.values())
+                weights = distributions[0]
+                if any(
+                    any(
+                        not math.isclose(weights.get(cid, 0), other.get(cid, 0), abs_tol=1e-9)
+                        for cid in weights.keys() | other.keys()
+                    )
+                    for other in distributions[1:]
+                ):
+                    raise ValueError("Conflicting payment weights require lead-level attribution")
+                lead_weights[lid] = weights
     for cid, campaign in index["campaigns"].items():
         placements = {r["placement_id"] for r in records["placements"] if r["campaign_id"] == cid}
         events = [r for r in records["events"] if r["placement_id"] in placements]
@@ -250,6 +278,14 @@ def calculate_business_metrics(
             is_synthetic=is_synthetic,
             attribution_model=attribution_model,
             cost=sum(number(index["placements"][p]["cost"]) for p in placements),
+            lead_equivalents=(
+                sum(weights.get(cid, 0) for weights in lead_weights.values())
+                if linear else row["leads"]
+            ),
+            order_equivalents=(
+                sum(lead_weights.get(r["lead_id"], {}).get(cid, 0) for r in records["orders"])
+                if linear else row["orders"]
+            ),
             payment_equivalents=equivalents[cid],
             attributed_revenue=revenue[cid],
         )
