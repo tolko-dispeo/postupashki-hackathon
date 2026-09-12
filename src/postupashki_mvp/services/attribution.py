@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
 import pandas as pd
-
 
 AttributionModel = Literal["last_touch", "first_touch", "linear"]
 
@@ -137,6 +136,14 @@ def _prepare_placements(placements: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def _filter_cohort(df: pd.DataFrame, is_synthetic: bool) -> pd.DataFrame:
+    if not isinstance(is_synthetic, bool):
+        raise TypeError("Select is_synthetic=True or False explicitly")
+    if "is_synthetic" not in df.columns:
+        raise ValueError("is_synthetic column is required for cohort filtering")
+    return df[df["is_synthetic"] == is_synthetic].copy()
+
+
 def _sort_touches(touches: pd.DataFrame) -> pd.DataFrame:
     return touches.sort_values(
         ["occurred_at", "event_id"],
@@ -211,11 +218,11 @@ def attribute_payments(
     if window_days < 0:
         raise ValueError("window_days must be non-negative")
 
-    events = _prepare_events(events)
-    leads = _prepare_leads(leads)
-    orders = _prepare_orders(orders)
-    payments = _prepare_payments(payments)
-    placements = _prepare_placements(placements)
+    events = _filter_cohort(_prepare_events(events), is_synthetic)
+    leads = _filter_cohort(_prepare_leads(leads), is_synthetic)
+    orders = _filter_cohort(_prepare_orders(orders), is_synthetic)
+    payments = _filter_cohort(_prepare_payments(payments), is_synthetic)
+    placements = _filter_cohort(_prepare_placements(placements), is_synthetic)
 
     ad_clicks = events[
         events["event_name"] == TOUCH_EVENT
@@ -224,7 +231,7 @@ def attribute_payments(
     ad_clicks = ad_clicks.merge(
         placements[["placement_id", "campaign_id"]],
         on="placement_id",
-        how="left",
+        how="inner",
         validate="many_to_one",
     )
 
@@ -330,18 +337,13 @@ def attribute_payments(
             "attributed_revenue",
             "attribution_status",
         ],
+        dtype=object,
     )
 
     if result.empty:
         return result
 
     return result
-
-
-def _filter_cohort(df: pd.DataFrame, is_synthetic: bool) -> pd.DataFrame:
-    if "is_synthetic" not in df.columns:
-        raise ValueError("is_synthetic column is required for cohort filtering")
-    return df[df["is_synthetic"] == is_synthetic].copy()
 
 
 def attribute_leads(
@@ -369,7 +371,7 @@ def attribute_leads(
     ad_clicks = ad_clicks.merge(
         placements[["placement_id", "campaign_id"]],
         on="placement_id",
-        how="left",
+        how="inner",
         validate="many_to_one",
     )
 
@@ -434,6 +436,7 @@ def attribute_leads(
             "attributed_revenue",
             "attribution_status",
         ],
+        dtype=object,
     )
 
 
@@ -517,9 +520,9 @@ def attribution_summary(
     )
 
     coverage = (
-        attributed_revenue / total_revenue * Decimal("100")
+        attributed_revenue / total_revenue * Decimal(100)
         if total_revenue > 0
-        else Decimal("0")
+        else Decimal(0)
     )
 
     return {
@@ -531,4 +534,3 @@ def attribution_summary(
         "unattributed_revenue": _money(unattributed_revenue),
         "attribution_coverage_pct": float(coverage),
     }
-    
