@@ -1,0 +1,226 @@
+{
+  "snapshots": {
+    "last_touch": {
+      "all": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "warning",
+          "errors_count": 0,
+          "warnings_count": 1,
+          "issues": [
+            {
+              "rule_id": "future_date",
+              "severity": "warning",
+              "table_name": "events",
+              "entity_id": "evt_demo_001",
+              "message": "Дата события позже времени проверки. Проверьте часовой пояс источника."
+            }
+          ]
+        }
+      },
+      "cmp_autumn_ml": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "warning",
+          "errors_count": 0,
+          "warnings_count": 1,
+          "issues": [
+            {
+              "rule_id": "future_date",
+              "severity": "warning",
+              "table_name": "events",
+              "entity_id": "evt_demo_001",
+              "message": "Дата события позже времени проверки. Проверьте часовой пояс источника."
+            }
+          ]
+        }
+      },
+      "cmp_career": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "ok",
+          "errors_count": 0,
+          "warnings_count": 0,
+          "issues": []
+        }
+      },
+      "cmp_shad": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "ok",
+          "errors_count": 0,
+          "warnings_count": 0,
+          "issues": []
+        }
+      }
+    },
+    "first_touch": {
+      "all": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "warning",
+          "errors_count": 0,
+          "warnings_count": 1,
+          "issues": [
+            {
+              "rule_id": "future_date",
+              "severity": "warning",
+              "table_name": "events",
+              "entity_id": "evt_demo_001",
+              "message": "Дата события позже времени проверки. Проверьте часовой пояс источника."
+            }
+          ]
+        }
+      },
+      "cmp_autumn_ml": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "warning",
+          "errors_count": 0,
+          "warnings_count": 1,
+          "issues": [
+            {
+              "rule_id": "future_date",
+              "severity": "warning",
+              "table_name": "events",
+              "entity_id": "evt_demo_001",
+              "message": "Дата события позже времени проверки. Проверьте часовой пояс источника."
+            }
+          ]
+        }
+      },
+      "cmp_career": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "ok",
+          "errors_count": 0,
+          "warnings_count": 0,
+          "issues": []
+        }
+      },
+      "cmp_shad": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "ok",
+          "errors_count": 0,
+          "warnings_count": 0,
+          "issues": []
+        }
+      }
+    },
+    "linear": {
+      "all": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "warning",
+          "errors_count": 0,
+          "warnings_count": 1,
+          "issues": [
+            {
+              "rule_id": "future_date",
+              "severity": "warning",
+              "table_name": "events",
+              "entity_id": "evt_demo_001",
+              "message": "Дата события позже времени проверки. Проверьте часовой пояс источника."
+            }
+          ]
+        }
+      },
+      "cmp_autumn_ml": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "warning",
+          "errors_count": 0,
+          "warnings_count": 1,
+          "issues": [
+            {
+              "rule_id": "future_date",
+              "severity": "warning",
+              "table_name": "events",
+              "entity_id": "evt_demo_001",
+              "message": "Дата события позже времени проверки. Проверьте часовой пояс источника."
+            }
+          ]
+        }
+      },
+      "cmp_career": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "ok",
+          "errors_count": 0,
+          "warnings_count": 0,
+          "issues": []
+        }
+      },
+      "cmp_shad": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "status": "ok",
+          "errors_count": 0,
+          "warnings_count": 0,
+          "issues": []
+        }
+      }
+    }
+  }
+}
