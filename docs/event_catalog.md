@@ -7,7 +7,7 @@
 ## Категории событий
 
 - **Действие пользователя:** `ad_click`, `landing_view`, `course_view`, `course_selected`, `manager_click`.
-- **Системное событие:** `placement_created`, `post_published`, `post_stats_collected`, `lead_created`, `order_created`, `course_access_granted`.
+- **Системное событие:** `lead_created`, `order_created`, `course_access_granted`.
 - **Действие менеджера:** `conversation_started`.
 - **Факт оплаты:** `payment_succeeded`.
 
@@ -19,9 +19,6 @@
 
 | event_name | Категория | Бизнес-смысл | Триггер | Источник | Обязательные поля | Дополнительные поля в `properties` | Пример `properties` | Способ наблюдения | Использование | Воронка | Атрибуция | Риск потери |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `placement_created` | Системное событие | Маркетолог зарегистрировал планируемое рекламное размещение и получил tracking-ссылку | Сохранение размещения в реестре | `ad_registry` | Общий конверт; заполнен `placement_id` | `channel_id`, `campaign_id`, `course_id`, channel_type, post_type, planned_publication_time, cost, tracking_url, UTM | `{"campaign_id":"cmp_autumn_26","course_id":"course_ml_start","cost":20000}` | Автоматически после действия маркетолога | Реестр размещений, затраты, основа ROMI | Нет, подготовка воронки | Нет | Размещение опубликовано в обход реестра или запись не сохранена |
-| `post_published` | Системное событие | Рекламный пост фактически опубликован | Подтверждение публикации или обнаружение поста | `telegram_collector` | Общий конверт; заполнен `placement_id` | `channel_id`, `campaign_id`, publication_time, post_type, post_url, target_course_id | `{"campaign_id":"cmp_autumn_26","publication_time":"2026-09-01T10:00:00Z"}` | Автоматически; при отсутствии интеграции вручную | Контроль выхода рекламы | Нет, подготовка воронки | Нет | Пост удалён, API недоступно или placement_id не сопоставлен с публикацией |
-| `post_stats_collected` | Системное событие | Получена агрегированная статистика Telegram-поста | Периодический сбор статистики по посту | `telegram_collector` | Общий конверт; заполнен `placement_id` | `channel_id`, `campaign_id`, collected_at, impressions, link_clicks, forwards, reactions | `{"impressions":1000,"link_clicks":50}` | Автоматически, если статистика доступна | CTR и охват; это агрегаты, а не просмотр человеком | Нет | Нет | Канал не отдаёт статистику или метрики изменились после сбора |
 | `ad_click` | Действие пользователя | Пользователь перешёл по рекламной tracking-ссылке | Запрос tracking_url с placement_id и UTM | `tracking_backend` | Общий конверт; заполнены `visitor_id`, `session_id`, `placement_id` | `course_id`, destination_url, UTM, referrer, request_id | `{"course_id":"course_ml_start","utm_source":"telegram"}` | Автоматически | Клики, CTR и переход к визиту | Да | Да, рекламное касание | Ссылка ведёт напрямую на сайт, редирект заблокирован или параметры удалены |
 | `landing_view` | Действие пользователя | Пользователь открыл сайт после рекламы | Загрузка первой страницы с трекером | `web_tracker` | Общий конверт; заполнены `visitor_id`, `session_id`, `placement_id` | `course_id`, URL, referrer, UTM, user_agent | `{"course_id":"course_ml_start","url":"https://postupashki.example/landing"}` | Автоматически | Количество визитов и конверсия landing → выбор курса | Да | Нет | Cookie или JavaScript отключены, запрос заблокирован, placement_id потерян |
 | `course_view` | Действие пользователя | Пользователь открыл страницу курса | Загрузка или показ страницы курса | `web_tracker` | Общий конверт; заполнены `visitor_id`, `session_id`, `placement_id` | `course_id`, URL, referrer, dwell_time_ms | `{"course_id":"course_ml_start"}` | Автоматически | Интерес к курсам и конверсия landing → просмотр курса | Да | Нет | Трекер заблокирован или SPA-переход не отправил событие |
@@ -32,6 +29,16 @@
 | `order_created` | Системное событие | Для лида создан заказ на курс | CRM сохранила новый заказ перед оплатой | `crm` | Общий конверт; заполнены `visitor_id`, `session_id`, `placement_id` | `lead_id`, `order_id`, `course_id`, amount, currency, status, created_at | `{"lead_id":"lead_control_001","order_id":"order_control_001","course_id":"course_ml_start","amount":42900,"currency":"RUB"}` | Автоматически | Связь лида с будущей оплатой | Да | Нет, служебное звено | Заказ создан вне CRM или потерян lead_id |
 | `payment_succeeded` | Факт оплаты | Платёж за курс успешно подтверждён | `status == "succeeded"`, `amount > 0`, `paid_at` заполнено | `payment_system` | Общий конверт; заполнены `visitor_id`, `session_id`, `placement_id` | `lead_id`, `order_id`, `payment_id`, `course_id`, amount, currency, status, paid_at | `{"payment_id":"payment_control_001","order_id":"order_control_001","amount":42900,"currency":"RUB","status":"succeeded","paid_at":"2026-09-08T12:30:00Z"}` | Автоматически или импортом | Revenue, attributed revenue, CAC и ROMI | Да | Да, атрибутируемый результат | В платеже отсутствует order_id, импорт задержан или статус не синхронизирован |
 | `course_access_granted` | Системное событие | Покупателю выдан доступ к курсу | CRM получила успешный платёж и активировала доступ | `crm` | Общий конверт; заполнены `visitor_id`, `session_id`, `placement_id` | `lead_id`, `order_id`, `payment_id`, `course_id`, access_status, granted_at | `{"order_id":"order_control_001","course_id":"course_ml_start","access_status":"granted"}` | Автоматически; при ручной выдаче вручную | Завершение операционной воронки | Да | Нет | Ошибка интеграции CRM или ручная выдача не зарегистрирована |
+
+## Будущие расширения
+
+Следующие события зарезервированы для возможного развития measurement system, но **не входят в Contract v1**. Сейчас API их не принимает, в контрольном `events.csv` их нет, и отправители не должны использовать эти названия в текущем потоке событий.
+
+| event_name | Бизнес-смысл | Возможный источник | Статус |
+|---|---|---|---|
+| `placement_created` | Маркетолог зарегистрировал рекламное размещение и получил tracking-ссылку | `ad_registry` | Будущее расширение; не принимается API и отсутствует в контрольном `events.csv` |
+| `post_published` | Рекламный пост фактически опубликован | `telegram_collector` | Будущее расширение; не принимается API и отсутствует в контрольном `events.csv` |
+| `post_stats_collected` | Получена агрегированная статистика Telegram-поста | `telegram_collector` | Будущее расширение; не принимается API и отсутствует в контрольном `events.csv` |
 
 ## Полная последовательность воронки
 
@@ -73,7 +80,7 @@ ad_click
 
 | Этап | Событие для проверки | Минимальные поля, которые нужно сохранить | Связь с предыдущим этапом |
 |---|---|---|---|
-| Placement | `placement_created` или запись в `placements.csv` | `channel_id`, `campaign_id`, `placement_id`, `course_id`, publication time, cost | `placement_id` уникален и создаётся до трафика |
+| Placement | Запись в `placements.csv` | `channel_id`, `campaign_id`, `placement_id`, `course_id`, publication time, cost | `placement_id` уникален и создаётся до трафика; отдельное событие Contract v1 не предусмотрено |
 | Ad click | `ad_click` | `event_id`, `occurred_at`, `visitor_id`, `session_id`, `placement_id` | `placement_id` должен существовать в реестре размещений |
 | Visit | `landing_view` | `event_id`, `occurred_at`, `visitor_id`, `session_id`, `placement_id` | Сохраняются идентификаторы клика и визита |
 | Course interest | `course_view`, `course_selected` | `visitor_id`, `session_id`, `placement_id`, `course_id` | В рамках сессии сохраняются те же `visitor_id`, `session_id` и `placement_id` |
@@ -115,22 +122,34 @@ order_created.properties.order_id
 - При нескольких касаниях один `visitor_id` может иметь несколько `session_id` и `placement_id`; история касаний сохраняется целиком.
 - Если `placement_id`, `visitor_id` или `lead_id` нельзя надёжно связать, запись не присоединяется к цепочке и помечается как unattributed.
 
-В контрольном наборе полная одноканальная цепочка находится в `scn_01`. Сценарий `scn_02` проверяет два placement для одного visitor, `scn_03` — обращение без оплаты, `scn_04` — просмотр без обращения.
+В контрольном наборе полная одноканальная цепочка находится в `scenario_01_full_funnel`. Сценарий `scenario_02_multi_touch` проверяет два placement для одного visitor, `scenario_03_lead_no_payment` — обращение без оплаты, `scenario_04_view_no_lead` — просмотр без обращения.
+
+
+### Окно атрибуции
+
+Для Contract v1 используется окно атрибуции 30 дней до создания лида.
+
+Кандидатом считается только событие `ad_click` того же `visitor_id`, для которого выполняется условие:
+
+`lead_created.occurred_at - 30 дней ≤ ad_click.occurred_at ≤ lead_created.occurred_at`
+
+Если подходящих кликов несколько, по модели last-touch выбирается последний клик. Если подходящего клика нет, лид и последующая оплата остаются `unattributed`.
+
 
 ## Метрики
 
-| Метрика | Числитель | Знаменатель | События и примечание |
-|---|---|---|---|
-| CTR | Количество кликов по tracking-ссылке | Количество показов поста | `post_stats_collected` или сочетание его показов с `ad_click`; считать только при сопоставимых и доступных агрегатах |
-| Конверсия landing → course_selected | Уникальные `visitor_id` или `session_id` с `course_selected` | Уникальные `visitor_id` или `session_id` с `landing_view` | Единица подсчёта и окно времени должны совпадать |
-| Конверсия course_selected → manager_click | Уникальные `lead_id` с `manager_click` | Уникальные выборы курса с `course_selected` | `course_selected`, `lead_created`, `manager_click` |
-| Конверсия manager_click → conversation_started | Уникальные `lead_id` с `conversation_started` | Уникальные `lead_id` с `manager_click` | Не заменять разговор кликом |
-| Конверсия conversation_started → payment | Уникальные `lead_id` с `payment_succeeded` | Уникальные `lead_id` с `conversation_started` | Использовать только подтверждённые платежи |
-| CPL | Сумма стоимости размещений | Уникальные `lead_id` с `lead_created` | В MVP лидом считается технически созданная заявка; бизнес может позже выбрать `conversation_started` как более строгий знаменатель |
-| CAC | Сумма стоимости размещений | Уникальные `lead_id` с `payment_succeeded` | Затраты и оплаты должны относиться к одному окну и правилу атрибуции |
-| Revenue | Сумма `amount` успешных платежей | Не применяется | `payment_succeeded`; без распределения по рекламе |
+| Метрика | Числитель                                                             | Знаменатель | События и примечание |
+|---|-----------------------------------------------------------------------|---|---|
+| CTR | Количество кликов по tracking-ссылке                                  | Количество показов поста | В Contract v1 используется `ad_click`; автоматическая загрузка показов через `post_stats_collected` относится к будущему расширению |
+| Конверсия landing → course_selected | Уникальные `visitor_id` или `session_id` с `course_selected`          | Уникальные `visitor_id` или `session_id` с `landing_view` | Единица подсчёта и окно времени должны совпадать |
+| Конверсия course_selected → manager_click | Уникальные пары `visitor_id + session_id` с `manager_click`           | Уникальные выборы курса с `course_selected` | `course_selected`, `lead_created`, `manager_click` |
+| Конверсия manager_click → conversation_started | Уникальные `lead_id` с `conversation_started`                         | Уникальные `lead_id` с `manager_click` | Не заменять разговор кликом |
+| Конверсия conversation_started → payment | Уникальные `lead_id` с `payment_succeeded`                            | Уникальные `lead_id` с `conversation_started` | Использовать только подтверждённые платежи |
+| CPL | Сумма стоимости размещений                                            | Уникальные `lead_id` с `lead_created` | В MVP лидом считается технически созданная заявка; бизнес может позже выбрать `conversation_started` как более строгий знаменатель |
+| CAC | Сумма стоимости размещений                                            | Уникальные `lead_id` с `payment_succeeded` | Затраты и оплаты должны относиться к одному окну и правилу атрибуции |
+| Revenue | Сумма `amount` успешных платежей                                      | Не применяется | `payment_succeeded`; без распределения по рекламе |
 | Attributed revenue | Сумма `amount`, распределённая по placement согласно модели атрибуции | Не применяется | `ad_click`, `lead_created`, `order_created`, `payment_succeeded`; несвязанные оплаты остаются unattributed |
-| ROMI | Attributed revenue минус стоимость размещений | Стоимость размещений | `(attributed revenue − cost) / cost`; считать только при `cost > 0` |
+| ROMI | Attributed revenue минус стоимость размещений                         | Стоимость размещений | `(attributed revenue − cost) / cost`; считать только при `cost > 0` |
 
 ## Ограничения
 
@@ -145,6 +164,6 @@ order_created.properties.order_id
 
 ## Принятые решения и открытые вопросы
 
-Принято, что `manager_click` фиксируется перед `lead_created`, а `lead_id` появляется только в `properties` события создания заявки и последующих событиях. Во втором сценарии один `visitor_id` используется в двух сессиях и с двумя placement_id; для last-touch-атрибуции выбирается последний подходящий `ad_click` до создания лида. Просмотр конкретным человеком в Telegram не моделируется: `post_published` и `post_stats_collected` относятся к размещению, а не к пользователю.
+Принято, что `manager_click` фиксируется перед `lead_created`, а `lead_id` появляется только в `properties` события создания заявки и последующих событиях. Во втором сценарии один `visitor_id` используется в двух сессиях и с двумя placement_id; для last-touch-атрибуции выбирается последний подходящий `ad_click` до создания лида. Просмотр конкретным человеком в Telegram не моделируется. `placement_created`, `post_published` и `post_stats_collected` вынесены в будущие расширения и не входят в Contract v1.
 
-Открытыми остаются окно атрибуции, правило дедупликации посетителей между устройствами, определение бизнес-лида для CPL (`lead_created` или `conversation_started`), валюта затрат и платежей, обработка возвратов и частичных оплат, а также источник фактических показов и кликов Telegram.
+Открытыми остаются правило дедупликации посетителей между устройствами, определение бизнес-лида для CPL (`lead_created` или `conversation_started`), валюта затрат и платежей, обработка возвратов и частичных оплат, а также источник фактических показов и кликов Telegram.
