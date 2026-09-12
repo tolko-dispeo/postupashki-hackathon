@@ -1,0 +1,526 @@
+{
+  "snapshots": {
+    "last_touch": {
+      "all": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": null,
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 496
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 407
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 183
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 65
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 38
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 23
+            }
+          ]
+        }
+      },
+      "cmp_autumn_ml": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_autumn_ml",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 146
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 123
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 59
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 22
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 13
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 9
+            }
+          ]
+        }
+      },
+      "cmp_career": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_career",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 186
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 152
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 73
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 25
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 14
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 9
+            }
+          ]
+        }
+      },
+      "cmp_shad": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "last_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_shad",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 165
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 133
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 51
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 16
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 9
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 3
+            }
+          ]
+        }
+      }
+    },
+    "first_touch": {
+      "all": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": null,
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 496
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 407
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 183
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 65
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 38
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 23
+            }
+          ]
+        }
+      },
+      "cmp_autumn_ml": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_autumn_ml",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 146
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 123
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 59
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 23
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 14
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 10
+            }
+          ]
+        }
+      },
+      "cmp_career": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_career",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 186
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 152
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 73
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 24
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 13
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 8
+            }
+          ]
+        }
+      },
+      "cmp_shad": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "first_touch",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_shad",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 165
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 133
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 51
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 16
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 9
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 3
+            }
+          ]
+        }
+      }
+    },
+    "linear": {
+      "all": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": null,
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 496
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 407
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 183
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 65
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 38
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 23
+            }
+          ]
+        }
+      },
+      "cmp_autumn_ml": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_autumn_ml",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 146
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 123
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 59
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 23
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 14
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 10
+            }
+          ]
+        }
+      },
+      "cmp_career": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_career",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 186
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 152
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 73
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 25
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 14
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 9
+            }
+          ]
+        }
+      },
+      "cmp_shad": {
+        "meta": {
+          "data_kind": "synthetic",
+          "attribution_model": "linear",
+          "attribution_window_days": 30,
+          "generated_at": "2026-09-12T12:00:00Z"
+        },
+        "data": {
+          "campaign_id": "cmp_shad",
+          "stages": [
+            {
+              "key": "unique_click_users",
+              "label": "Кликнувшие посетители",
+              "value": 165
+            },
+            {
+              "key": "landing_users",
+              "label": "Посетители сайта",
+              "value": 133
+            },
+            {
+              "key": "course_users",
+              "label": "Выбрали курс",
+              "value": 51
+            },
+            {
+              "key": "leads",
+              "label": "Лиды",
+              "value": 16
+            },
+            {
+              "key": "orders",
+              "label": "Заказы",
+              "value": 9
+            },
+            {
+              "key": "successful_payments",
+              "label": "Оплаты",
+              "value": 3
+            }
+          ]
+        }
+      }
+    }
+  }
+}
