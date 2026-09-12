@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from math import isfinite
 from typing import Literal
 from urllib.parse import quote
 from uuid import uuid4
@@ -17,6 +18,11 @@ from postupashki_mvp.models import (
     Order,
     Payment,
     Placement,
+)
+from postupashki_mvp.services.reporting import (
+    CampaignNotFoundError,
+    build_analytics_report,
+    load_data_quality_issues,
 )
 
 app = FastAPI(
@@ -111,6 +117,63 @@ def compact_properties(**values: object) -> dict[str, object]:
     return {key: value for key, value in values.items() if value is not None}
 
 
+def analytics_meta(
+    data_kind: str,
+    attribution_model: str,
+    campaign_id: str | None,
+) -> dict[str, object]:
+    return {
+        "data_kind": data_kind,
+        "attribution_model": attribution_model,
+        "attribution_window_days": 30,
+        "campaign_id": campaign_id,
+        "generated_at": iso_utc(datetime.now(UTC)),
+    }
+
+
+def json_value(value: object) -> object:
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, datetime):
+        return iso_utc(value)
+    if hasattr(value, "item"):
+        value = value.item()
+    if isinstance(value, float) and not isfinite(value):
+        return None
+    return value
+
+
+def frame_records(frame, *, money_fields: set[str] | None = None) -> list[dict[str, object]]:
+    money_fields = money_fields or set()
+    records = []
+    for raw in frame.to_dict("records"):
+        row = {}
+        for key, value in raw.items():
+            value = json_value(value)
+            if key in money_fields and value is not None:
+                value = f"{Decimal(str(value)):.2f}"
+            row[key] = value
+        records.append(row)
+    return records
+
+
+def analytics_report(
+    data_kind: Literal["synthetic", "real"],
+    attribution_model: Literal["last_touch", "first_touch", "linear"],
+    campaign_id: str | None,
+) -> dict[str, object]:
+    try:
+        return build_analytics_report(
+            is_synthetic=data_kind == "synthetic",
+            attribution_model=attribution_model,
+            campaign_id=campaign_id,
+        )
+    except CampaignNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
 def latest_visitor_context(session, visitor_id: str) -> Event | None:
     return session.scalar(
         select(Event)
@@ -138,6 +201,147 @@ def set_visitor_cookie(
 @app.get("/health", tags=["system"])
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/analytics/summary", tags=["analytics"])
+def analytics_summary(
+    data_kind: Literal["synthetic", "real"] = "synthetic",
+    attribution_model: Literal["last_touch", "first_touch", "linear"] = "last_touch",
+    campaign_id: str | None = None,
+) -> dict[str, object]:
+    report = analytics_report(data_kind, attribution_model, campaign_id)
+    row = report["funnel"].iloc[0].to_dict()
+    total_revenue = (
+        row.get("total_revenue")
+        if campaign_id is None
+        else row.get("attributed_revenue")
+    )
+    unattributed_revenue = (
+        row.get("unattributed_revenue") if campaign_id is None else 0
+    )
+    coverage = (
+        100.0
+        if campaign_id is not None and float(row.get("attributed_revenue", 0)) > 0
+        else (
+            float(row.get("attributed_revenue", 0)) / float(total_revenue) * 100
+            if float(total_revenue or 0) > 0
+            else 0.0
+        )
+    )
+    data = {
+        "campaigns": report["campaigns_count"],
+        "placements": report["placements_count"],
+        **{
+            key: json_value(row.get(key))
+            for key in (
+                "clicks",
+                "unique_click_users",
+                "landing_users",
+                "course_users",
+                "leads",
+                "orders",
+                "successful_payments",
+                "payment_equivalents",
+                "cpl",
+                "cpo",
+                "cac",
+                "average_payment",
+                "romi_pct",
+            )
+        },
+        "total_revenue": f"{Decimal(str(total_revenue or 0)):.2f}",
+        "attributed_revenue": f"{Decimal(str(row.get('attributed_revenue', 0))):.2f}",
+        "unattributed_revenue": f"{Decimal(str(unattributed_revenue or 0)):.2f}",
+        "attribution_coverage_pct": round(coverage, 2),
+        "cost": f"{Decimal(str(row.get('cost', 0))):.2f}",
+    }
+    return {
+        "meta": analytics_meta(data_kind, attribution_model, campaign_id),
+        "data": data,
+    }
+
+
+@app.get("/analytics/campaigns", tags=["analytics"])
+def analytics_campaigns(
+    data_kind: Literal["synthetic", "real"] = "synthetic",
+    attribution_model: Literal["last_touch", "first_touch", "linear"] = "last_touch",
+    campaign_id: str | None = None,
+) -> dict[str, object]:
+    report = analytics_report(data_kind, attribution_model, campaign_id)
+    items = frame_records(
+        report["campaign_metrics"],
+        money_fields={"attributed_revenue", "cost"},
+    )
+    return {
+        "meta": analytics_meta(data_kind, attribution_model, campaign_id),
+        "data": {"items": items, "count": len(items)},
+    }
+
+
+@app.get("/analytics/funnel", tags=["analytics"])
+def analytics_funnel(
+    data_kind: Literal["synthetic", "real"] = "synthetic",
+    attribution_model: Literal["last_touch", "first_touch", "linear"] = "last_touch",
+    campaign_id: str | None = None,
+) -> dict[str, object]:
+    report = analytics_report(data_kind, attribution_model, campaign_id)
+    row = report["funnel"].iloc[0]
+    labels = {
+        "unique_click_users": "Кликнувшие",
+        "landing_users": "Посетители сайта",
+        "course_users": "Выбрали курс",
+        "leads": "Лиды",
+        "orders": "Заказы",
+        "successful_payments": "Оплаты",
+    }
+    stages = [
+        {"key": key, "label": label, "value": int(row[key])}
+        for key, label in labels.items()
+    ]
+    return {
+        "meta": analytics_meta(data_kind, attribution_model, campaign_id),
+        "data": {"campaign_id": campaign_id, "stages": stages},
+    }
+
+
+@app.get("/analytics/placements", tags=["analytics"])
+def analytics_placements(
+    data_kind: Literal["synthetic", "real"] = "synthetic",
+    attribution_model: Literal["last_touch", "first_touch", "linear"] = "last_touch",
+    campaign_id: str | None = None,
+) -> dict[str, object]:
+    report = analytics_report(data_kind, attribution_model, campaign_id)
+    items = frame_records(
+        report["placement_metrics"],
+        money_fields={"attributed_revenue", "cost"},
+    )
+    return {
+        "meta": analytics_meta(data_kind, attribution_model, campaign_id),
+        "data": {"items": items, "count": len(items)},
+    }
+
+
+@app.get("/data-quality/summary", tags=["data-quality"])
+def data_quality_summary(
+    data_kind: Literal["synthetic", "real"] = "synthetic",
+    attribution_model: Literal["last_touch", "first_touch", "linear"] = "last_touch",
+    campaign_id: str | None = None,
+) -> dict[str, object]:
+    issues = frame_records(
+        load_data_quality_issues(is_synthetic=data_kind == "synthetic")
+    )
+    errors_count = sum(issue["severity"] == "error" for issue in issues)
+    warnings_count = sum(issue["severity"] == "warning" for issue in issues)
+    status = "error" if errors_count else "warning" if warnings_count else "ok"
+    return {
+        "meta": analytics_meta(data_kind, attribution_model, campaign_id),
+        "data": {
+            "status": status,
+            "errors_count": errors_count,
+            "warnings_count": warnings_count,
+            "issues": issues,
+        },
+    }
 
 
 @app.post("/campaigns", tags=["registry"], status_code=201)
