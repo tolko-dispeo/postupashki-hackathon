@@ -1,10 +1,52 @@
-# Скрипты
+# Скрипты проекта
 
-Запланированные команды:
+Все команды выполняются из корня репозитория после активации Python-
+окружения. Скрипты используют базу из переменной `DATABASE_URL`; если она
+не задана, применяется `sqlite:///data/postupashki_mvp.sqlite3`.
 
-- `init_db.py` — применить миграции и создать SQLite;
-- `seed_demo.py` — загрузить согласованные синтетические данные;
-- `load_payments.py` — загрузить выгрузку оплат;
-- `build_marts.py` — пересчитать аналитические витрины.
+| Скрипт | Назначение |
+| --- | --- |
+| `init_db.py` | Создать текущие таблицы SQLAlchemy в выбранной БД |
+| `seed_demo.py` | Пересоздать небольшой synthetic-набор: 3 кампании, 6 размещений, 497 кликов, 63 лида и 23 оплаты |
+| `seed_large_demo.py` | Пересоздать большую synthetic-базу по `data/mock/large_demo/placements_plan.csv` |
+| `show_events.py` | Вывести события выбранной БД по времени |
+| `show_attribution.py` | Показать диагностический SQL-отчёт last-touch |
 
-Скрипты добавляются после утверждения логической модели.
+## Небольшая база
+
+```powershell
+$env:DATABASE_URL = "sqlite:///data/postupashki_mvp.sqlite3"
+python scripts/init_db.py
+python scripts/seed_demo.py
+```
+
+`seed_demo.py` удаляет и создаёт заново только synthetic-данные в
+выбранной базе.
+
+## Большая база
+
+```powershell
+$env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
+python scripts/seed_large_demo.py
+```
+
+Доступные параметры:
+
+```powershell
+python scripts/seed_large_demo.py --help
+```
+
+Генератор полностью очищает выбранную БД. Без `--force` он работает только
+с локальной SQLite, в имени которой есть `large_demo` или `synthetic`.
+Не применяйте `--force` к рабочим или реальным данным.
+
+## Диагностика
+
+```powershell
+python scripts/show_events.py
+python scripts/show_attribution.py
+```
+
+Канонические метрики приложения рассчитываются сервисами из
+`src/postupashki_mvp/services/`; `show_attribution.py` предназначен только
+для прозрачной ручной проверки last-touch.

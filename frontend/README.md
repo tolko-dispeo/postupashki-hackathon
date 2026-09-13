@@ -1,96 +1,124 @@
-# Marketing Measurement — frontend-прототип
+# Frontend «Поступашки»
 
-Независимый кабинет «Поступашек»: аналитика маркетинга и реестр рекламных кампаний. Vite, JavaScript ES modules, CSS, Chart.js. Все изменения изолированы в `frontend/`; Python, БД и контрольные CSV не изменяются.
+JavaScript/Vite-интерфейс для маркетинговой аналитики и реестра рекламы.
+Визуализации построены на Chart.js. Экономические формулы выполняются на
+backend; frontend запрашивает готовые метрики и форматирует их для показа.
 
-## Запуск
+## Режимы данных
 
-Требуется Node.js 22.12+ с npm. Из корня репозитория:
+| `VITE_DATA_SOURCE` | Источник | Назначение |
+| --- | --- | --- |
+| `api` | FastAPI по `VITE_API_BASE_URL` | Работа с выбранной SQLite-базой |
+| `mock` | JSON из `public/mock/` | Автономный просмотр интерфейса |
 
-```sh
+Активный источник отображается в правом верхнем углу страницы. API-режим
+не переключается на mock автоматически при ошибке backend.
+
+## Запуск с FastAPI
+
+Сначала запустите backend из корня репозитория:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+$env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
+python -m uvicorn postupashki_mvp.api:app --host 127.0.0.1 --port 8000
+```
+
+Затем в другом терминале:
+
+```powershell
 cd frontend
+Copy-Item .env.example .env.local
+notepad .env.local
 npm ci
-npm run dev
+npm run dev -- --port 5174
 ```
 
-Открыть адрес из терминала (обычно http://127.0.0.1:5173). По умолчанию работает mock, FastAPI не нужен. Для production-предпросмотра: `npm run build`, затем `npm run preview` (обычно порт 4173). Это локальный просмотр, не production-деплой.
-
-Проверки:
-
-```sh
-npm run lint
-npm test
-npm run build
-```
-
-## Что можно показать
-
-- 12 KPI, в том числе общая/атрибутированная/неатрибутированная выручка, CAC, ROMI и покрытие атрибуции.
-- Шесть этапов воронки с долей первого и предыдущего этапа; фактические значения не подгоняются под монотонную воронку.
-- Графики выручки/расходов и ROMI с нулевой линией. Знак также виден в таблице; отсутствующий ROMI — серый маркер на нуле с `—` в подсказке, а не нулевой ROMI.
-- Сортируемая таблица кампаний (по умолчанию ROMI, затем выручка по убыванию; null в конце), таблица размещений, детали качества без выдуманного score.
-- Фильтры synthetic/real, last_touch/first_touch/linear, campaign_id. Устаревший запрос не перезаписывает новый срез. Несовпадающие meta отклоняются.
-- Реестр, создание кампании и размещения, выделение новой строки, tracking-ссылка, копирование и ручное копирование при отказе браузера.
-- Формы с проверками, блокировкой повторной отправки, сохранением ввода при серверной ошибке, удержанием фокуса и Escape.
-
-## Демо-сценарии
-
-Переключатель находится внизу страницы в «Демо-сценарии».
-
-| Сценарий               | Что проверить                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| Обычная аналитика      | 3 synthetic-кампании, 6 размещений, положительный/отрицательный ROMI, warning качества |
-| Real в фильтре         | Пустой срез и предложение вернуться к synthetic                                        |
-| Нулевые показатели     | Нулевые деньги/счётчики, отсутствующие CAC/ROMI/конверсии, без NaN и Infinity          |
-| Пустой реестр          | Создать первую кампанию, затем первое размещение                                       |
-| Ошибка качества данных | Красный баннер и подробности нарушения                                                 |
-| Источник недоступен    | Ошибки отдельных блоков и «Повторить»; для восстановления вернуть обычный сценарий     |
-
-Mock хранит новые записи **в памяти вкладки до перезагрузки**. JSON-файлы не меняются. Аналитика — заранее подготовленные снимки, она не пересчитывается при создании записей реестра. У новой кампании аналитика пуста, что объясняется в интерфейсе. Переключение сценария не удаляет созданные записи; перезагрузка возвращает исходное демо. Tracking-ссылки в mock иллюстративные, их переходы и сбор событий требуют backend.
-
-Контрольные значения обычного среза: общая выручка `237350.00`, атрибутированная `222450.00`, неатрибутированная `14900.00`, расходы `130000.00`. Для «Осенний запуск ML» last_touch даёт `80550.00`, first_touch — `93450.00`, linear — `87000.00` и `9.5` эквивалента оплат. Общие уникальные пользователи дедуплицированы и не обязаны равняться сумме кампаний. Количество физических оплат при linear также нельзя складывать между кампаниями; используются `payment_equivalents`.
-
-## Подключение FastAPI — для интегратора
-
-После объединения backend реализовать контракт ниже и CORS для адреса frontend (включая OPTIONS/POST и Content-Type), либо отдавать сборку с того же origin. Скопировать `.env.example` в `.env`:
+Укажите в `.env.local`:
 
 ```dotenv
 VITE_DATA_SOURCE=api
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Перезапустить dev server; для production собрать заново. Vite подставляет переменные при сборке. Не помещать секреты в `VITE_*`. API-режим никогда не подменяется mock при ошибке.
+Откройте <http://127.0.0.1:5174/>. Backend разрешает локальные Vite-origin
+`http://127.0.0.1:5173` и `http://127.0.0.1:5174`.
 
-| Метод клиента                | HTTP                                                  |
-| ---------------------------- | ----------------------------------------------------- |
-| getSummary(filters)          | GET /analytics/summary                                |
-| getCampaignMetrics(filters)  | GET /analytics/campaigns                              |
-| getFunnel(filters)           | GET /analytics/funnel                                 |
-| getPlacementMetrics(filters) | GET /analytics/placements                             |
-| getDataQuality(filters)      | GET /data-quality/summary                             |
-| getCampaigns()               | GET /campaigns                                        |
-| createCampaign(payload)      | POST /campaigns                                       |
-| getPlacements(campaignId)    | GET /placements?campaign_id=… (параметр необязателен) |
-| createPlacement(payload)     | POST /placements                                      |
+Переменные `VITE_*` подставляются Vite при запуске или сборке и не должны
+содержать секреты. После их изменения перезапустите dev server.
 
-Все аналитические запросы передают `data_kind=synthetic|real`, `attribution_model=last_touch|first_touch|linear`, необязательный `campaign_id`. Ответ: `{meta, data}`; meta содержит те же фильтры, `attribution_window_days: 30`, `generated_at` в UTC ISO 8601. Схемы data и примеры представлены в `public/mock/*.json` → `snapshots[model][campaign_id или all]`. Обёртка `snapshots` — только файловое хранилище mock; HTTP возвращает один `{meta, data}`.
+## Mock-режим
 
-Денежные суммы `cost`, `total_revenue`, `attributed_revenue`, `unattributed_revenue` — строки с двумя знаками. Коэффициенты `cpl`, `cpo`, `cac`, `romi_pct`, `attribution_coverage_pct` — число либо null. UI только форматирует значения в ru-RU. Опциональные `click_to_lead_pct` / `lead_to_payment_pct` в mock удобны для отображения; без них UI показывает отношение готовых счётчиков (для linear — payment_equivalents). Экономика и распределение выручки в JS не рассчитываются.
+В `.env.local` укажите:
 
-GET реестра возвращает `{items, count}`, POST — созданную сущность без аналитической обёртки. Campaign: `campaign_id`, `campaign_name`, `is_synthetic`, `placements_count`, `created_at`. Placement: `placement_id`, `campaign_id`, `campaign_name`, `channel_name`, `target_product`, `landing_url`, `tracking_url`, `cost`, `is_synthetic`, `created_at`.
+```dotenv
+VITE_DATA_SOURCE=mock
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
 
-POST campaign: `{campaign_name, is_synthetic}`. POST placement: `{campaign_id, channel_name, target_product, landing_url, cost}`; cost отправляется числом, пустой продукт — null. Идентификаторы и tracking_url определяет сервер. Имена ограничены 255 символами, URL только http(s), расходы конечные и >= 0.
+После `npm run dev` FastAPI не требуется. Mock-снимки находятся в
+`public/mock/*.json`. Созданные через формы записи живут только в памяти
+вкладки и исчезают после перезагрузки.
 
-Ошибки поддерживают `{detail: "…"}`, `{detail: {code, message}}`, массив FastAPI 422 с `loc/msg`; сохраняются status и ошибки полей. Timeout — 12 секунд. Смена схемы сериализации изолируется в `src/api/http-client.js`.
+## Что реализовано
 
-Backend отвечает за Contract v1, успешность оплат, ad_click и окно 30 дней **перед созданием лида**, unattributed, дедупликацию, real/synthetic и все формулы экономики. ROMI — revenue-based proxy, не прибыль и не доказательство причинного эффекта рекламы. CAC в этом MVP — стоимость успешной оплаты, не уникального клиента. Frontend не обращается к БД и не импортирует Python.
+- общая аналитическая сводка и 12 KPI;
+- воронка привлечения;
+- графики выручки, расходов и ROMI;
+- таблицы кампаний и размещений;
+- фильтры synthetic/real, модели атрибуции и кампании;
+- проверка качества данных;
+- создание кампаний и размещений;
+- tracking-ссылки и копирование в буфер;
+- пустые, ошибочные и загрузочные состояния;
+- адаптивная вёрстка.
 
-После подключения провести E2E на настоящем API: все три модели, оба типа данных, фильтр campaign_id, создание/повторное чтение сущностей, tracking redirect и ошибки 404/409/422. Этот PR не подтверждает E2E с ещё не объединённым backend.
+CAC в текущем MVP означает стоимость успешной оплаты. При `linear`
+интерфейс показывает взвешенные эквиваленты оплат.
 
-## Проверка и ограничения
+## Используемый API
 
-Unit/DOM-тесты покрывают форматирование, фильтры, сортировку, адаптер, ошибки, согласованность mock-снимков, формы и linear-подписи. Ручная проверка — создание записей, копирование, Tab/Shift+Tab/Escape, пустые и ошибочные состояния, ширины 390/768/1024/1440 CSS px. Широкие таблицы прокручиваются внутри панели, страница не прокручивается горизонтально.
+| Метод клиента | HTTP |
+| --- | --- |
+| `getSummary(filters)` | `GET /analytics/summary` |
+| `getCampaignMetrics(filters)` | `GET /analytics/campaigns` |
+| `getFunnel(filters)` | `GET /analytics/funnel` |
+| `getPlacementMetrics(filters)` | `GET /analytics/placements` |
+| `getDataQuality(filters)` | `GET /data-quality/summary` |
+| `getCampaigns()` | `GET /campaigns` |
+| `createCampaign(payload)` | `POST /campaigns` |
+| `getPlacements(campaignId)` | `GET /placements?campaign_id=...` |
+| `createPlacement(payload)` | `POST /placements` |
 
-Нет редактирования/удаления записей, авторизации, пагинации и production-деплоя: это демонстрационный прототип по ТЗ. Бизнес-метрики mock не являются реальной историей проекта.
+Аналитические запросы передают `data_kind`, `attribution_model` и
+необязательный `campaign_id`. HTTP-клиент использует тайм-аут 12 секунд и
+преобразует ошибки FastAPI в сообщения интерфейса.
+
+## Проверки
+
+```powershell
+npm ci
+npm test
+npm run lint
+npm run build
+```
+
+Для локального просмотра production-сборки:
+
+```powershell
+npm run preview
+```
+
+## Ограничения
+
+- нет авторизации и ролей;
+- нет редактирования и удаления существующих записей;
+- нет пагинации и production-деплоя;
+- mock-аналитика не пересчитывается после создания записей;
+- единый автозапуск frontend и backend пока не реализован.
+
+## Скриншоты
 
 ![Desktop](docs/screenshots/desktop.png)
+
 ![Mobile](docs/screenshots/mobile.png)
