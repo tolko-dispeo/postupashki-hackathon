@@ -18,13 +18,15 @@
 
 ## Автоматическое создание через Docker
 
-При запуске `docker-start.bat` или `docker compose up --build -d` большая
-база создаётся автоматически внутри постоянного Docker volume. Локальный
-файл `data/postupashki_mvp_large_demo.sqlite3` при этом не изменяется.
+Команда `docker compose up --build -d` работает на Windows, macOS и Linux.
+На Windows её также можно запустить через `docker-start.bat` или
+графический лаунчер. Большая база создаётся автоматически внутри
+постоянного Docker volume. Локальный файл
+`data/postupashki_mvp_large_demo.sqlite3` при этом не изменяется.
 
 Для принудительного пересоздания Docker-базы:
 
-```powershell
+```shell
 docker compose down -v
 docker compose up --build -d
 ```
@@ -35,6 +37,13 @@ docker compose up --build -d
 
 ```powershell
 $env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
+python scripts/seed_large_demo.py
+```
+
+macOS/Linux:
+
+```bash
+export DATABASE_URL="sqlite:///data/postupashki_mvp_large_demo.sqlite3"
 python scripts/seed_large_demo.py
 ```
 

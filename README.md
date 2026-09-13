@@ -6,7 +6,7 @@ Telegram до оплаты курса. Система создаёт tracking-с
 по рекламным касаниям и показывает итоговые метрики в веб-интерфейсе.
 
 Основной стек: FastAPI, SQLAlchemy, SQLite, Pandas, Streamlit, JavaScript,
-Vite и Chart.js.
+Vite, Chart.js и C#/.NET WPF.
 
 ## Как работает система
 
@@ -31,6 +31,7 @@ Vite и Chart.js.
 - контроль качества данных;
 - разделение synthetic и real данных;
 - JavaScript/Vite-интерфейс с режимами API и mock;
+- графический Windows-лаунчер для Docker-запуска;
 - дополнительный Streamlit-дашборд;
 - малый контрольный и большой демонстрационный наборы данных.
 
@@ -48,17 +49,59 @@ Vite и Chart.js.
 При модели `linear` используются взвешенные эквиваленты. ROMI считается
 по выручке, а не по прибыли, и не доказывает причинный эффект рекламы.
 
+## Совместимость запуска
+
+Само приложение запускается через Docker Compose и не привязано к пути
+проекта или учётной записи разработчика. После клонирования каждый
+пользователь получает собственные локальные контейнеры и Docker volume с
+demo-данными.
+
+| Система | Docker-запуск | Графический лаунчер |
+| --- | --- | --- |
+| Windows 10/11 x64 | Да, через Docker Desktop | Да, `PostupashkiLauncher.exe` |
+| macOS Intel / Apple silicon | Да, через Docker Desktop | Нет, используется Terminal |
+| Linux | Да, через Docker Engine и Compose plugin | Нет, используется терминал |
+
+Во всех системах frontend открывается локально на
+<http://127.0.0.1:8080/>. На компьютере должен быть свободен порт `8080` и
+запущен Docker. Python, Node.js и SQLite для Docker-сценария не нужны.
+
+## Графический запуск на Windows x64
+
+`PostupashkiLauncher.exe` проводит пользователя через четыре понятных
+экрана: поиск проекта, проверку Docker Desktop, выбор режима и запуск.
+Лаунчер показывает живой лог, ждёт готовности `/health`, открывает дашборд
+и умеет безопасно остановить контейнеры.
+
+Готовый EXE не хранится в Git: каталог `launcher/publish/` игнорируется.
+Поэтому после обычного `git clone` пользователь либо запускает Compose
+командой из следующего раздела, либо отдельно получает лаунчер:
+
+1. Скачайте `PostupashkiLauncher.exe` из
+   [последнего GitHub Release](https://github.com/tolko-dispeo/postupashki-hackathon/releases/latest).
+2. Положите EXE рядом с `compose.yaml` в корень проекта.
+3. Запустите двойным нажатием и выберите «Обычный запуск».
+
+Лаунчер автоматически находит `compose.yaml` рядом с собой или предлагает
+выбрать его вручную. На компьютере пользователя не нужны Python, Node.js
+или .NET Runtime, однако Docker Desktop должен быть установлен. Исходники,
+локальная сборка и выпуск EXE описаны в
+[`launcher/BUILDING.md`](launcher/BUILDING.md).
+
 ## Самый быстрый запуск через Docker
 
-Нужен только запущенный Docker Desktop. Python, Node.js и ручное создание
-базы для этого способа не требуются.
+На Windows и macOS нужен запущенный Docker Desktop. На Linux нужны Docker
+Engine и Compose plugin. Python, Node.js и ручное создание базы для этого
+способа не требуются.
 
-На Windows дважды нажмите `docker-start.bat`. Либо выполните из корня
-репозитория:
+Одинаковая команда для Windows PowerShell, macOS Terminal и Linux shell:
 
-```powershell
+```shell
 docker compose up --build -d
+docker compose ps
 ```
+
+На Windows также можно дважды нажать `docker-start.bat`.
 
 Первый запуск скачивает базовые образы, собирает приложение и автоматически
 создаёт большую synthetic-базу. После готовности откройте:
@@ -70,16 +113,18 @@ docker compose up --build -d
 Индикатор в правом верхнем углу frontend должен показывать `API`, а сводка —
 10 кампаний, 20 размещений и 7 280 рекламных кликов.
 
-Остановить проект можно двойным нажатием `docker-stop.bat` или командой:
+Остановить проект на любой системе можно командой:
 
-```powershell
+```shell
 docker compose down
 ```
+
+На Windows также можно дважды нажать `docker-stop.bat`.
 
 Данные сохраняются в Docker volume между запусками. Чтобы удалить их и при
 следующем старте заново создать чистую большую базу, выполните:
 
-```powershell
+```shell
 docker compose down -v
 ```
 
@@ -89,13 +134,21 @@ docker compose down -v
 ## Ручной запуск без Docker
 
 Требования: Python 3.11 или новее, Node.js 22.12 или новее и npm.
-PowerShell-команды ниже выполняются из корня репозитория.
+Команды выполняются из корня репозитория.
 
-Создайте Python-окружение:
+Windows PowerShell:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+```
+
+macOS/Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
@@ -124,6 +177,13 @@ $env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
 python scripts/seed_large_demo.py
 ```
 
+На macOS/Linux переменная задаётся так:
+
+```bash
+export DATABASE_URL="sqlite:///data/postupashki_mvp_large_demo.sqlite3"
+python scripts/seed_large_demo.py
+```
+
 Большой сценарий создаёт 10 кампаний, 20 размещений, 7 280 кликов,
 772 лида, 456 заказов и 273 оплаты. Генератор полностью очищает выбранную
 demo-базу перед заполнением и отказывается работать с SQLite-файлом без
@@ -141,15 +201,21 @@ $env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
 python -m uvicorn postupashki_mvp.api:app --host 127.0.0.1 --port 8000
 ```
 
+На macOS/Linux активируйте окружение через
+`source .venv/bin/activate` и задайте URL командой
+`export DATABASE_URL="sqlite:///data/postupashki_mvp_large_demo.sqlite3"`.
+
 Терминал 2 — frontend:
 
-```powershell
+```shell
 cd frontend
-Copy-Item .env.example .env.local
-notepad .env.local
 npm ci
 npm run dev -- --port 5174
 ```
+
+Перед запуском скопируйте `.env.example` в `.env.local`: на Windows
+используйте `Copy-Item .env.example .env.local`, на macOS/Linux —
+`cp .env.example .env.local`.
 
 Содержимое `frontend/.env.local` для настоящего API:
 
@@ -233,8 +299,10 @@ npm run build
 ```text
 postupashki-hackathon/
 ├── frontend/                 # JavaScript/Vite кабинет
+├── launcher/                 # графический Windows-лаунчер на WPF
 ├── docker/                   # Dockerfile и конфигурация Nginx
 ├── compose.yaml              # единый запуск frontend и backend
+├── build-launcher.bat        # локальная сборка Windows EXE
 ├── docker-start.bat          # запуск для Windows двойным нажатием
 ├── docker-stop.bat           # остановка контейнеров для Windows
 ├── src/postupashki_mvp/

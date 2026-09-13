@@ -4,6 +4,10 @@
 окружения. Скрипты используют базу из переменной `DATABASE_URL`; если она
 не задана, применяется `sqlite:///data/postupashki_mvp.sqlite3`.
 
+В Windows PowerShell переменная задаётся через
+`$env:DATABASE_URL = "..."`, а в macOS/Linux — через
+`export DATABASE_URL="..."`.
+
 | Скрипт | Назначение |
 | --- | --- |
 | `init_db.py` | Создать текущие таблицы SQLAlchemy в выбранной БД |
@@ -31,9 +35,16 @@ $env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
 python scripts/seed_large_demo.py
 ```
 
+macOS/Linux:
+
+```bash
+export DATABASE_URL="sqlite:///data/postupashki_mvp_large_demo.sqlite3"
+python scripts/seed_large_demo.py
+```
+
 Доступные параметры:
 
-```powershell
+```shell
 python scripts/seed_large_demo.py --help
 ```
 
@@ -46,10 +57,11 @@ python scripts/seed_large_demo.py --help
 `docker_start.py` вызывается автоматически из `docker/backend.Dockerfile`.
 Вручную его запускать не нужно. При первом старте он создаёт большую базу в
 Docker volume, а при следующих стартах сохраняет уже имеющиеся данные.
+Этот Docker-сценарий одинаков для Windows, macOS и Linux.
 
 ## Диагностика
 
-```powershell
+```shell
 python scripts/show_events.py
 python scripts/show_attribution.py
 ```

@@ -6,11 +6,15 @@ backend; frontend запрашивает готовые метрики и фор
 
 ## Самый быстрый запуск
 
-Из корня всего репозитория дважды нажмите `docker-start.bat` или выполните:
+На Windows, macOS и Linux выполните из корня репозитория:
 
-```powershell
+```shell
 docker compose up --build -d
 ```
+
+На Windows вместо команды можно дважды нажать `docker-start.bat` или
+использовать графический `PostupashkiLauncher.exe`. EXE работает только
+на Windows x64; Docker-команда является кроссплатформенной.
 
 После сборки интерфейс доступен на <http://127.0.0.1:8080/> и уже подключён
 к FastAPI и большой synthetic-базе. Node.js отдельно устанавливать не нужно.
@@ -36,15 +40,21 @@ $env:DATABASE_URL = "sqlite:///data/postupashki_mvp_large_demo.sqlite3"
 python -m uvicorn postupashki_mvp.api:app --host 127.0.0.1 --port 8000
 ```
 
-Затем в другом терминале:
+На macOS/Linux активируйте окружение через
+`source .venv/bin/activate`, задайте `DATABASE_URL` через `export` и
+выполните ту же команду `python -m uvicorn ...`.
 
-```powershell
+Затем в другом терминале установите зависимости и запустите Vite:
+
+```shell
 cd frontend
-Copy-Item .env.example .env.local
-notepad .env.local
 npm ci
 npm run dev -- --port 5174
 ```
+
+Перед запуском создайте `.env.local` из `.env.example`: на Windows
+PowerShell выполните `Copy-Item .env.example .env.local`, на macOS/Linux —
+`cp .env.example .env.local`.
 
 Укажите в `.env.local`:
 
