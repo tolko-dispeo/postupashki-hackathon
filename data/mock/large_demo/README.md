@@ -16,6 +16,19 @@
 - 4 178 650 ₽ выручки и 2 265 000 ₽ расходов;
 - ROMI 84,49% и покрытие атрибуции 100%.
 
+## Автоматическое создание через Docker
+
+При запуске `docker-start.bat` или `docker compose up --build -d` большая
+база создаётся автоматически внутри постоянного Docker volume. Локальный
+файл `data/postupashki_mvp_large_demo.sqlite3` при этом не изменяется.
+
+Для принудительного пересоздания Docker-базы:
+
+```powershell
+docker compose down -v
+docker compose up --build -d
+```
+
 ## Создание базы
 
 Из корня репозитория:

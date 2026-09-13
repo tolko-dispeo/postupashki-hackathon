@@ -9,6 +9,7 @@
 | `init_db.py` | Создать текущие таблицы SQLAlchemy в выбранной БД |
 | `seed_demo.py` | Пересоздать небольшой synthetic-набор: 3 кампании, 6 размещений, 497 кликов, 63 лида и 23 оплаты |
 | `seed_large_demo.py` | Пересоздать большую synthetic-базу по `data/mock/large_demo/placements_plan.csv` |
+| `docker_start.py` | Внутри backend-контейнера подготовить постоянную demo-БД и запустить FastAPI |
 | `show_events.py` | Вывести события выбранной БД по времени |
 | `show_attribution.py` | Показать диагностический SQL-отчёт last-touch |
 
@@ -39,6 +40,12 @@ python scripts/seed_large_demo.py --help
 Генератор полностью очищает выбранную БД. Без `--force` он работает только
 с локальной SQLite, в имени которой есть `large_demo` или `synthetic`.
 Не применяйте `--force` к рабочим или реальным данным.
+
+## Docker
+
+`docker_start.py` вызывается автоматически из `docker/backend.Dockerfile`.
+Вручную его запускать не нужно. При первом старте он создаёт большую базу в
+Docker volume, а при следующих стартах сохраняет уже имеющиеся данные.
 
 ## Диагностика
 
