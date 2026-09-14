@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,8 @@ def prepare_daily_revenue(frame: pd.DataFrame, *, fill_missing: bool = False) ->
     """Aggregate date/revenue rows; gaps are errors unless explicitly declared zero days."""
     if not {"date", "revenue"}.issubset(frame.columns) or frame.empty:
         raise ValueError("Input must contain nonempty date and revenue columns")
+    if pd.api.types.is_numeric_dtype(frame["date"]):
+        raise ValueError("Use ISO dates, not numeric timestamps")
     dates = pd.to_datetime(frame["date"], errors="raise", utc=True).dt.normalize()
     amounts = pd.to_numeric(frame["revenue"], errors="raise")
     if dates.isna().any() or not np.isfinite(amounts).all() or (amounts < 0).any():
@@ -30,25 +33,33 @@ def prepare_daily_revenue(frame: pd.DataFrame, *, fill_missing: bool = False) ->
 
 def predict(train: pd.Series, horizon: int, model: str) -> np.ndarray:
     """Fixed-origin forecast. Never reads actual values inside the forecast horizon."""
-    if model not in MODELS or horizon < 1 or len(train) < 7:
+    if (model not in MODELS or isinstance(horizon, bool) or not isinstance(horizon, int)
+            or horizon < 1 or len(train) < 7):
         raise ValueError("Known model, positive horizon and at least seven training days required")
+    if not np.isfinite(train).all() or (train < 0).any():
+        raise ValueError("Training revenue must be finite and nonnegative")
     if model == "last_value":
         return np.repeat(float(train.iloc[-1]), horizon)
     if model == "weekly_naive":
         return np.resize(train.iloc[-7:].to_numpy(dtype=float), horizon)
     recent = train.iloc[-28:]
     by_weekday = recent.groupby(recent.index.dayofweek).mean()
-    future = pd.date_range(train.index[-1] + pd.Timedelta(days=1), periods=horizon, freq="D")
+    future = pd.date_range(train.index[-1].date() + timedelta(days=1), periods=horizon, freq="D")
     return np.array([by_weekday[day.dayofweek] for day in future], dtype=float)
 
 
 def error_metrics(actual, predicted) -> dict:
     actual, predicted = np.asarray(actual, dtype=float), np.asarray(predicted, dtype=float)
+    if (actual.ndim != 1 or actual.size == 0 or actual.shape != predicted.shape
+            or not np.isfinite(actual).all() or not np.isfinite(predicted).all()):
+        raise ValueError("Metrics require equally sized, finite nonempty vectors")
     errors = predicted - actual
+    # Scaling avoids overflow when squaring otherwise valid monetary values.
+    scale = float(np.abs(errors).max())
     denominator = float(np.abs(actual).sum())
     return {
         "mae": float(np.abs(errors).mean()),
-        "rmse": float(np.sqrt(np.square(errors).mean())),
+        "rmse": float(scale * np.sqrt(np.square(errors / scale).mean())) if scale else 0.0,
         "wape_pct": float(np.abs(errors).sum() / denominator * 100) if denominator else None,
         "bias": float(errors.mean()),
     }
@@ -93,7 +104,7 @@ def evaluate_forecast(
     # Stable tie-breaking favours the first (simplest) model, never the holdout winner.
     selected = min(MODELS, key=lambda model: validation.loc[model, "mae"])
     future_dates = pd.date_range(
-        daily.index[-1] + pd.Timedelta(days=1), periods=horizon, freq="D"
+        daily.index[-1].date() + timedelta(days=1), periods=horizon, freq="D"
     )
     future = pd.DataFrame({
         "date": future_dates.strftime("%Y-%m-%d"), "model": selected,
@@ -115,5 +126,6 @@ def evaluate_forecast(
         ),
         "forecast_total": float(future.predicted_revenue.sum()),
     }
-    assert math.isfinite(summary["forecast_total"])
+    if not math.isfinite(summary["forecast_total"]):
+        raise ValueError("Forecast total overflow")
     return {"predictions": predictions, "metrics": metrics, "forecast": future, "summary": summary}

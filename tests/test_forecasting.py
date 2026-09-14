@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from postupashki_mvp.services.forecasting import (
+    error_metrics,
     evaluate_forecast,
     predict,
     prepare_daily_revenue,
@@ -77,3 +78,53 @@ def test_fold_windows_do_not_overlap_and_future_starts_after_history():
     assert rows.date.is_unique
     assert result["forecast"].date.iloc[0] == "2026-02-26"
     assert len(result["forecast"]) == 7
+
+
+def test_error_formulas_against_hand_calculation():
+    result = error_metrics([0, 10, 20], [3, 7, 26])
+    assert result["mae"] == 4
+    assert result["rmse"] == pytest.approx(np.sqrt(18))
+    assert result["wape_pct"] == 40
+    assert result["bias"] == 2
+
+
+@pytest.mark.parametrize("horizon", [True, 0, -2, 2.5])
+def test_invalid_horizons(horizon):
+    with pytest.raises(ValueError):
+        evaluate_forecast(series([1] * 40), horizon=horizon)
+
+
+@pytest.mark.parametrize("days", [True, 0, 6, 14.5])
+def test_invalid_training_lengths(days):
+    with pytest.raises(ValueError):
+        evaluate_forecast(series([1] * 40), min_train_days=days)
+
+
+@pytest.mark.parametrize("actual,predicted", [([], []), ([1], [1, 2]),
+                                            ([float("nan")], [1])])
+def test_invalid_metric_vectors(actual, predicted):
+    with pytest.raises(ValueError):
+        error_metrics(actual, predicted)
+
+
+def test_numeric_date_does_not_become_epoch_nanoseconds():
+    with pytest.raises(ValueError, match="ISO"):
+        prepare_daily_revenue(pd.DataFrame({"date": [20260101], "revenue": [1]}))
+
+
+def test_rmse_does_not_overflow_when_squaring_large_values():
+    assert error_metrics([0, 0], [1e160, 1e160])["rmse"] == 1e160
+
+
+def test_each_validation_origin_cannot_read_its_future():
+    history = series(np.arange(64) * 100.0)
+    original = evaluate_forecast(history)["predictions"]
+    for start in [14, 21, 28, 35, 42, 49]:
+        changed = history.copy()
+        changed.iloc[start:] = 123456
+        updated = evaluate_forecast(changed)["predictions"]
+        cutoff = history.index[start - 1].date().isoformat()
+        pd.testing.assert_frame_equal(
+            original[original.origin <= cutoff].drop(columns="actual"),
+            updated[updated.origin <= cutoff].drop(columns="actual"),
+        )

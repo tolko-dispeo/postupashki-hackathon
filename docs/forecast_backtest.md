@@ -12,7 +12,7 @@ Python 3.11+, из корня репозитория:
 ```powershell
 python -m pip install -e ".[dev]"
 python scripts/forecast_backtest.py --input data/mock/forecast/daily_revenue.csv --data-kind synthetic --output data/processed/forecast_demo
-python -m pytest tests/test_forecasting.py -q
+python -m pytest tests/test_forecasting.py tests/test_forecast_cli.py -q
 ```
 
 Открыть `data/processed/forecast_demo/report.html` в браузере. HTML содержит
@@ -113,3 +113,14 @@ last_value: holdout MAE 52 507,14 руб., WAPE 69,80%. MAE weekly_naive
 агрегацию строк, пропуски и некорректные значения, короткую историю, нулевую
 выручку и непересечение окон. Изменение фактов финального holdout не должно
 менять выбранную модель или прогнозы, построенные до этих фактов.
+
+Дополнительно проверяется отсутствие утечки в каждом validation-окне,
+метрики сверяются с ручным расчётом, RMSE не переполняется от возведения
+больших конечных значений в квадрат. CLI-тесты создают весь комплект файлов,
+проверяют хэш входа, повторяемость сводки, нулевую выручку и ошибочный CSV.
+
+Отчёт содержит viewport для мобильных устройств, горизонтальную прокрутку
+таблиц, адаптивные блоки и график с выделением holdout. В автоматической
+проверке контролируется структура HTML и отсутствие внешнего script src.
+Визуальная проверка в браузере этого запуска не завершена: политика браузера
+заблокировала локальный file://. Это не заменяется заявлением о визуальном QA.
