@@ -1,0 +1,21 @@
+campaign_id,campaign_name,campaign_slug,placement_id,channel_name,target_product,cost,payment_amount,clicks,landings,courses,leads,orders,payments
+cmp_large_ml,Запуск курса ML,ml_launch,plc_large_001,Data Science Jobs,ML Start,150000.00,12900.00,500,420,180,60,36,22
+cmp_large_ml,Запуск курса ML,ml_launch,plc_large_002,Python и Data Science,ML Start,95000.00,12900.00,350,290,120,38,22,13
+cmp_large_python,Python Backend,python_backend,plc_large_003,Python для всех,Python Pro,190000.00,15900.00,450,360,150,48,26,16
+cmp_large_python,Python Backend,python_backend,plc_large_004,Backend-разработка,Python Pro,120000.00,15900.00,300,230,90,25,14,7
+cmp_large_career,Карьерный интенсив,career_boost,plc_large_005,Карьера BigTech,Career Pro,185000.00,24900.00,420,350,165,56,35,22
+cmp_large_career,Карьерный интенсив,career_boost,plc_large_006,Стажировки IT,Career Pro,110000.00,24900.00,280,230,110,37,22,13
+cmp_large_exam,Подготовка к поступлению,exam_prep,plc_large_007,Абитуриенты 2027,Exam Start,105000.00,8950.00,520,420,155,44,22,9
+cmp_large_exam,Подготовка к поступлению,exam_prep,plc_large_008,ЕГЭ и поступление,Exam Start,80000.00,8950.00,350,275,96,28,13,5
+cmp_large_analytics,Аналитик данных,data_analytics,plc_large_009,Аналитика и BI,Data Analyst,165000.00,16900.00,440,360,150,52,30,17
+cmp_large_analytics,Аналитик данных,data_analytics,plc_large_010,Вакансии аналитиков,Data Analyst,110000.00,16900.00,300,240,95,32,18,10
+cmp_large_frontend,Frontend Start,frontend_start,plc_large_011,Frontend-разработка,Frontend Start,110000.00,11900.00,400,315,118,36,19,11
+cmp_large_frontend,Frontend Start,frontend_start,plc_large_012,Web-разработка,Frontend Start,85000.00,11900.00,270,205,72,22,13,7
+cmp_large_algorithms,Алгоритмы и структуры данных,algorithms,plc_large_013,Алгоритмы для интервью,Algorithms,95000.00,13900.00,340,270,100,32,18,9
+cmp_large_algorithms,Алгоритмы и структуры данных,algorithms,plc_large_014,LeetCode Community,Algorithms,70000.00,13900.00,230,175,60,19,11,7
+cmp_large_qa,QA Automation,qa_automation,plc_large_015,Тестировщики России,QA Automation,110000.00,10900.00,380,310,112,38,22,11
+cmp_large_qa,QA Automation,qa_automation,plc_large_016,Автоматизация тестирования,QA Automation,75000.00,10900.00,260,205,70,23,13,7
+cmp_large_product,Продуктовая аналитика,product_analytics,plc_large_017,Product Analytics,Product Analyst,155000.00,18900.00,360,295,118,40,24,15
+cmp_large_product,Продуктовая аналитика,product_analytics,plc_large_018,Менеджеры продуктов,Product Analyst,105000.00,18900.00,240,190,75,27,15,10
+cmp_large_internship,Первая IT-стажировка,it_internship,plc_large_019,Студенты IT,Internship Start,85000.00,6900.00,470,380,132,40,21,7
+cmp_large_internship,Первая IT-стажировка,it_internship,plc_large_020,Стажировки для начинающих,Internship Start,65000.00,6900.00,320,250,82,25,12,5

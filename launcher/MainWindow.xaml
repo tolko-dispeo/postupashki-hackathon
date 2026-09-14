@@ -1,0 +1,488 @@
+<Window x:Class="Postupashki.Launcher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Поступашки — запуск проекта"
+        Width="1120"
+        Height="740"
+        MinWidth="980"
+        MinHeight="650"
+        WindowStartupLocation="CenterScreen"
+        Icon="Assets/app-icon.ico"
+        Background="#F5F7FB"
+        FontFamily="Segoe UI">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="278" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#101D39">
+            <Grid Margin="30,28">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="48" Height="48" CornerRadius="13" Background="#2C6BFF">
+                        <TextBlock Text="П↗"
+                                   Foreground="White"
+                                   FontSize="23"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Margin="13,3,0,0">
+                        <TextBlock Text="ПОСТУПАШКИ"
+                                   Foreground="White"
+                                   FontSize="17"
+                                   FontWeight="Bold" />
+                        <TextBlock Text="PROJECT LAUNCHER"
+                                   Foreground="#91A1BF"
+                                   FontSize="9"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1"
+                           Margin="0,48,0,16"
+                           Text="НАСТРОЙКА ЗАПУСКА"
+                           Foreground="#7486A8"
+                           FontSize="10"
+                           FontWeight="SemiBold" />
+
+                <StackPanel Grid.Row="2">
+                    <Border x:Name="StepWelcome" CornerRadius="10" Padding="12" Margin="0,0,0,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="StepWelcomeNumber" Width="25" Height="25" CornerRadius="13"
+                                    Background="#2C6BFF" HorizontalAlignment="Left">
+                                <TextBlock x:Name="StepWelcomeNumberLabel" Text="1" Foreground="White" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock x:Name="StepWelcomeLabel" Grid.Column="1" Text="Знакомство" Foreground="White"
+                                       FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border x:Name="StepCheck" CornerRadius="10" Padding="12" Margin="0,0,0,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="StepCheckNumber" Width="25" Height="25" CornerRadius="13"
+                                    Background="#263653" HorizontalAlignment="Left">
+                                <TextBlock x:Name="StepCheckNumberLabel" Text="2" Foreground="#AAB7CE" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock x:Name="StepCheckLabel" Grid.Column="1" Text="Проверка Docker" Foreground="#AAB7CE"
+                                       FontSize="14" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border x:Name="StepMode" CornerRadius="10" Padding="12" Margin="0,0,0,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="StepModeNumber" Width="25" Height="25" CornerRadius="13"
+                                    Background="#263653" HorizontalAlignment="Left">
+                                <TextBlock x:Name="StepModeNumberLabel" Text="3" Foreground="#AAB7CE" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock x:Name="StepModeLabel" Grid.Column="1" Text="Выбор режима" Foreground="#AAB7CE"
+                                       FontSize="14" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <Border x:Name="StepReady" CornerRadius="10" Padding="12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="34" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="StepReadyNumber" Width="25" Height="25" CornerRadius="13"
+                                    Background="#263653" HorizontalAlignment="Left">
+                                <TextBlock x:Name="StepReadyNumberLabel" Text="4" Foreground="#AAB7CE" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock x:Name="StepReadyLabel" Grid.Column="1" Text="Готово" Foreground="#AAB7CE"
+                                       FontSize="14" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <Border Grid.Row="3" Background="#182846" CornerRadius="12" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="Без ручной настройки"
+                                   Foreground="White"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Text="Лаунчер сам проверит Docker, соберёт сервисы и откроет дашборд."
+                                   Foreground="#9DABC3"
+                                   FontSize="12"
+                                   LineHeight="18"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="42,27,42,32">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Локальный запуск" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                    <TextBlock x:Name="ProjectPathText"
+                               Margin="0,4,0,0"
+                               Text="Поиск папки проекта…"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="610" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="#E8F7EF" CornerRadius="16" Padding="12,6"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="7" Height="7" Fill="{StaticResource SuccessBrush}" Margin="0,0,7,0" />
+                        <TextBlock Text="Windows launcher" Foreground="{StaticResource SuccessBrush}"
+                                   FontSize="11" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <Grid x:Name="WelcomePage">
+                    <StackPanel VerticalAlignment="Center" MaxWidth="720" HorizontalAlignment="Left">
+                        <Border Background="#E9F0FF" CornerRadius="14" Padding="12,6"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="БЫСТРЫЙ СТАРТ" Foreground="{StaticResource PrimaryBrush}"
+                                       FontSize="11" FontWeight="Bold" />
+                        </Border>
+                        <TextBlock Margin="0,22,0,0"
+                                   Text="Запустим аналитику без сложной настройки"
+                                   FontSize="36"
+                                   FontWeight="Bold"
+                                   LineHeight="43"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Margin="0,14,0,0"
+                                   Text="Лаунчер проверит Docker Desktop, поднимет frontend и backend, подготовит большую демонстрационную базу и откроет готовый дашборд."
+                                   Foreground="{StaticResource MutedBrush}"
+                                   FontSize="15"
+                                   LineHeight="23"
+                                   TextWrapping="Wrap" />
+
+                        <Grid Margin="0,30,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="12" Padding="17">
+                                <StackPanel>
+                                    <TextBlock Text="01" Foreground="{StaticResource PrimaryBrush}"
+                                               FontWeight="Bold" FontSize="12" />
+                                    <TextBlock Margin="0,8,0,0" Text="Проверка" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock Margin="0,5,0,0" Text="Docker и файлы проекта"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="12" Padding="17">
+                                <StackPanel>
+                                    <TextBlock Text="02" Foreground="{StaticResource PrimaryBrush}"
+                                               FontWeight="Bold" FontSize="12" />
+                                    <TextBlock Margin="0,8,0,0" Text="Запуск" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock Margin="0,5,0,0" Text="С понятным живым логом"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="4" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="12" Padding="17">
+                                <StackPanel>
+                                    <TextBlock Text="03" Foreground="{StaticResource PrimaryBrush}"
+                                               FontWeight="Bold" FontSize="12" />
+                                    <TextBlock Margin="0,8,0,0" Text="Результат" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock Margin="0,5,0,0" Text="Готовый API-дашборд"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,34,0,0">
+                            <Button Style="{StaticResource PrimaryButton}" Content="Начать настройку  →"
+                                    Click="BeginButton_Click" />
+                            <Button Style="{StaticResource GhostButton}" Content="Выбрать папку проекта"
+                                    Margin="12,0,0,0" Click="SelectProjectButton_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <Grid x:Name="CheckPage" Visibility="Collapsed">
+                    <StackPanel MaxWidth="750" HorizontalAlignment="Left">
+                        <TextBlock Text="Проверим готовность компьютера" FontSize="31" FontWeight="Bold" />
+                        <TextBlock Margin="0,9,0,0"
+                                   Text="Ничего устанавливать вручную не нужно, кроме Docker Desktop."
+                                   Foreground="{StaticResource MutedBrush}" FontSize="15" />
+
+                        <Border Margin="0,26,0,0" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="14" Padding="22">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="42" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="ProjectStatusIcon" Width="30" Height="30" CornerRadius="15"
+                                        Background="#EFF3F8" HorizontalAlignment="Left">
+                                    <TextBlock x:Name="ProjectStatusGlyph" Text="…" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Файлы проекта" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock x:Name="ProjectStatusText" Margin="0,4,0,0"
+                                               Text="Проверяем compose.yaml"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Style="{StaticResource GhostButton}"
+                                        Content="Выбрать папку" Click="SelectProjectButton_Click" />
+                            </Grid>
+                        </Border>
+
+                        <Border Margin="0,12,0,0" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="14" Padding="22">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="42" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="DockerCliStatusIcon" Width="30" Height="30" CornerRadius="15"
+                                        Background="#EFF3F8" HorizontalAlignment="Left">
+                                    <TextBlock x:Name="DockerCliStatusGlyph" Text="…" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Docker установлен" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock x:Name="DockerCliStatusText" Margin="0,4,0,0"
+                                               Text="Проверяем команду docker"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                </StackPanel>
+                                <Button x:Name="InstallDockerButton" Grid.Column="2"
+                                        Style="{StaticResource GhostButton}" Content="Скачать Docker"
+                                        Click="InstallDockerButton_Click" Visibility="Collapsed" />
+                            </Grid>
+                        </Border>
+
+                        <Border Margin="0,12,0,0" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="14" Padding="22">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="42" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="DockerEngineStatusIcon" Width="30" Height="30" CornerRadius="15"
+                                        Background="#EFF3F8" HorizontalAlignment="Left">
+                                    <TextBlock x:Name="DockerEngineStatusGlyph" Text="…" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="Docker Desktop запущен" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock x:Name="DockerEngineStatusText" Margin="0,4,0,0"
+                                               Text="Проверяем Docker Engine"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                </StackPanel>
+                                <Button x:Name="StartDockerButton" Grid.Column="2"
+                                        Style="{StaticResource GhostButton}" Content="Запустить Docker"
+                                        Click="StartDockerButton_Click" Visibility="Collapsed" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,25,0,0">
+                            <Button x:Name="ContinueButton" Style="{StaticResource PrimaryButton}"
+                                    Content="Выбрать режим  →" Click="ContinueButton_Click" IsEnabled="False" />
+                            <Button x:Name="RefreshButton" Style="{StaticResource GhostButton}"
+                                    Content="Проверить ещё раз" Margin="12,0,0,0"
+                                    Click="RefreshButton_Click" />
+                            <Button Style="{StaticResource GhostButton}" Content="← Назад" Margin="12,0,0,0"
+                                    Click="BackToWelcomeButton_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <Grid x:Name="ModePage" Visibility="Collapsed">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                        <TextBlock Text="Как запустить проект?" FontSize="31" FontWeight="Bold" />
+                        <TextBlock Margin="0,9,0,0" Text="Оба режима используют настоящие FastAPI и frontend."
+                                   Foreground="{StaticResource MutedBrush}" FontSize="15" />
+
+                        <Grid Margin="0,28,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="White" BorderBrush="#9DB9FF"
+                                    BorderThickness="2" CornerRadius="15" Padding="24">
+                                <StackPanel>
+                                    <Border Background="#EAF1FF" CornerRadius="12" Padding="10,5"
+                                            HorizontalAlignment="Left">
+                                        <TextBlock Text="РЕКОМЕНДУЕТСЯ" Foreground="{StaticResource PrimaryBrush}"
+                                                   FontSize="10" FontWeight="Bold" />
+                                    </Border>
+                                    <TextBlock Margin="0,18,0,0" Text="Обычный запуск" FontWeight="Bold" FontSize="21" />
+                                    <TextBlock Margin="0,10,0,0"
+                                               Text="Соберёт свежую версию и сохранит изменения в Docker-базе между запусками."
+                                               Foreground="{StaticResource MutedBrush}" FontSize="13"
+                                               LineHeight="20" TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,17,0,0" Text="✓ Безопасно для локальных SQLite-файлов"
+                                               Foreground="{StaticResource SuccessBrush}" FontSize="12" />
+                                    <TextBlock Margin="0,7,0,0" Text="✓ Последующие запуски быстрее"
+                                               Foreground="{StaticResource SuccessBrush}" FontSize="12" />
+                                    <Button Margin="0,25,0,0" Style="{StaticResource PrimaryButton}"
+                                            Content="Запустить проект" Click="NormalLaunchButton_Click" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="15" Padding="24">
+                                <StackPanel>
+                                    <Border Background="#FFF4E6" CornerRadius="12" Padding="10,5"
+                                            HorizontalAlignment="Left">
+                                        <TextBlock Text="СБРОС DEMO-ДАННЫХ" Foreground="{StaticResource WarningBrush}"
+                                                   FontSize="10" FontWeight="Bold" />
+                                    </Border>
+                                    <TextBlock Margin="0,18,0,0" Text="Чистый запуск" FontWeight="Bold" FontSize="21" />
+                                    <TextBlock Margin="0,10,0,0"
+                                               Text="Удалит только Docker volume этого проекта и заново создаст большую synthetic-базу."
+                                               Foreground="{StaticResource MutedBrush}" FontSize="13"
+                                               LineHeight="20" TextWrapping="Wrap" />
+                                    <TextBlock Margin="0,17,0,0" Text="• 10 кампаний и 20 размещений"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                    <TextBlock Margin="0,7,0,0" Text="• 7 280 рекламных кликов"
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                    <Button Margin="0,25,0,0" Style="{StaticResource GhostButton}"
+                                            Content="Пересоздать и запустить" Click="CleanLaunchButton_Click" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Button Margin="0,22,0,0" HorizontalAlignment="Left"
+                                Style="{StaticResource GhostButton}" Content="← Вернуться к проверке"
+                                Click="BackToCheckButton_Click" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid x:Name="ProgressPage" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="ProgressTitle" Text="Запускаем проект" FontSize="31" FontWeight="Bold" />
+                    <TextBlock x:Name="ProgressStatus" Grid.Row="1" Margin="0,9,0,0"
+                               Text="Docker собирает сервисы. Первый запуск может занять несколько минут."
+                               Foreground="{StaticResource MutedBrush}" FontSize="15" TextWrapping="Wrap" />
+                    <ProgressBar x:Name="LaunchProgress" Grid.Row="2" Margin="0,22,0,18"
+                                 Height="6" IsIndeterminate="True" Foreground="{StaticResource PrimaryBrush}" />
+                    <Border Grid.Row="3" Background="#111C32" CornerRadius="13" Padding="17">
+                        <TextBox x:Name="LogTextBox"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="#C7D2E7"
+                                 FontFamily="Cascadia Mono, Consolas"
+                                 FontSize="12"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" />
+                    </Border>
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,18,0,0">
+                        <Button x:Name="CancelOperationButton" Style="{StaticResource GhostButton}"
+                                Content="Отменить" Click="CancelOperationButton_Click" />
+                        <Button x:Name="RetryButton" Style="{StaticResource PrimaryButton}"
+                                Content="Повторить" Margin="12,0,0,0" Visibility="Collapsed"
+                                Click="RetryButton_Click" />
+                        <Button x:Name="ProgressBackButton" Style="{StaticResource GhostButton}"
+                                Content="← Выбор режима" Margin="12,0,0,0" Visibility="Collapsed"
+                                Click="ProgressBackButton_Click" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid x:Name="ReadyPage" Visibility="Collapsed">
+                    <StackPanel VerticalAlignment="Center" MaxWidth="700" HorizontalAlignment="Left">
+                        <Border Width="68" Height="68" Background="#E5F7ED" CornerRadius="34"
+                                HorizontalAlignment="Left">
+                            <TextBlock Text="✓" Foreground="{StaticResource SuccessBrush}"
+                                       FontSize="34" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Margin="0,24,0,0" Text="Проект готов к работе" FontSize="36" FontWeight="Bold" />
+                        <TextBlock Margin="0,12,0,0"
+                                   Text="Frontend подключён к настоящему API. Большая демонстрационная база доступна в Docker volume."
+                                   Foreground="{StaticResource MutedBrush}" FontSize="15"
+                                   LineHeight="23" TextWrapping="Wrap" />
+
+                        <Border Margin="0,27,0,0" Background="White" BorderBrush="{StaticResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="14" Padding="20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="10" FontSize="24" FontWeight="Bold" />
+                                    <TextBlock Text="кампаний" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="7 280" FontSize="24" FontWeight="Bold" />
+                                    <TextBlock Text="кликов" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="84,49%" FontSize="24" FontWeight="Bold"
+                                               Foreground="{StaticResource SuccessBrush}" />
+                                    <TextBlock Text="ROMI demo" Foreground="{StaticResource MutedBrush}" FontSize="12" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,30,0,0">
+                            <Button Style="{StaticResource PrimaryButton}" Content="Открыть дашборд  ↗"
+                                    Click="OpenDashboardButton_Click" />
+                            <Button Style="{StaticResource SecondaryButton}" Content="Документация API"
+                                    Margin="12,0,0,0" Click="OpenDocsButton_Click" />
+                            <Button Style="{StaticResource GhostButton}" Content="Остановить"
+                                    Margin="12,0,0,0" Click="StopProjectButton_Click" />
+                        </StackPanel>
+                        <Button Margin="0,15,0,0" HorizontalAlignment="Left"
+                                Style="{StaticResource GhostButton}" Content="Выбрать другой режим"
+                                Click="ReadyBackButton_Click" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
